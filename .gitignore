@@ -13,3 +13,6 @@ supabase/.branches/
 .idea/
 coverage/
 *.tsbuildinfo
+
+/.local-verification/
+/docs/screenshots/
