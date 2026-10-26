@@ -1,0 +1,6 @@
+# Repository owner; add an independent reviewer before a public lending launch.
+/supabase/ @avihealthcare
+/src/services/ @avihealthcare
+/src/hooks/useApp.tsx @avihealthcare
+/src/lib/supabase.ts @avihealthcare
+/src/pages/AuthPage.tsx @avihealthcare
