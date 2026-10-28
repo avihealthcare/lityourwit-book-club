@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { Brand } from "../components/Brand";
 import { ReadingIllustration } from "../components/ReadingIllustration";
-import { supabase, isDemo } from "../lib/supabase";
+import { supabase, isDemo, invitationFlow } from "../lib/supabase";
 import { useApp } from "../hooks/useApp";
 export function WelcomePage() {
   return (
@@ -53,8 +53,9 @@ export function WelcomePage() {
 }
 export function AuthPage() {
   const params = new URLSearchParams(location.search);
+  const invited = params.get("mode") === "invite" || invitationFlow;
   const [mode, setMode] = useState(
-    params.get("mode") === "signup" ? "signup" : "login",
+    invited ? "update" : params.get("mode") === "signup" ? "signup" : "login",
   );
   const [email, setEmail] = useState(""),
     [password, setPassword] = useState(""),
@@ -68,10 +69,11 @@ export function AuthPage() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") setMode("update");
+      if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && invited))
+        setMode("update");
     });
     return () => subscription.unsubscribe();
-  }, []);
+  }, [invited]);
   const switchMode = (next: string) => {
     setMode(next);
     setError("");

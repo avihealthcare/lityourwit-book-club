@@ -9,14 +9,18 @@
     "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc -b",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prebuild": "node scripts/prepare-ocr.mjs",
+    "predev": "node scripts/prepare-ocr.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.118.0",
+    "@tesseract.js-data/eng": "1.0.0",
     "lucide-react": "0.468.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "react-router-dom": "7.18.4"
+    "react-router-dom": "7.18.4",
+    "tesseract.js": "7.0.0"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.3.14",

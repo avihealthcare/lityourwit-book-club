@@ -19,7 +19,13 @@ import {
 } from "../data/demo";
 import { loadAccount, loadCatalogue, saveBook } from "../services/catalogue";
 import type { Book, Plan, LedgerEntry, NewBook, FamilyProfile } from "../types";
+import type { Chapter } from "../services/admin";
 interface AppState {
+  chapter: Pick<
+    Chapter,
+    "id" | "name" | "area" | "city" | "description" | "active"
+  > | null;
+  isAdmin: boolean;
   books: Book[];
   plans: Plan[];
   economy: Record<string, number>;
@@ -60,6 +66,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [error, setError] = useState(""),
     [toast, setToast] = useState(""),
     [saved, setSaved] = useState<string[]>([]);
+  const [chapter, setChapter] = useState<AppState["chapter"]>(
+    isDemo
+      ? {
+          id: CHAPTER_ID,
+          name: "Viha’s Chapter",
+          area: "Powai",
+          city: "Mumbai",
+          description: "Our founding reading neighbourhood",
+          active: true,
+        }
+      : null,
+  );
+  const [isAdmin, setIsAdmin] = useState(false);
   const refreshGeneration = useRef(0);
   const notify = useCallback((message: string) => setToast(message), []);
   useEffect(() => {
@@ -89,6 +108,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!current) {
         setBooks([]);
         setProfile(null);
+        setIsAdmin(false);
+        setChapter(null);
         setBalance(0);
         setLedger([]);
         setPlans([]);
@@ -103,6 +124,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (generation !== refreshGeneration.current) return;
       setBooks(catalogue);
       setProfile(account.profile);
+      setIsAdmin(account.isAdmin);
+      setChapter(account.chapter);
       setBalance(account.balance);
       setLedger(account.ledger);
       setPlans(account.plans);
@@ -111,6 +134,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (generation !== refreshGeneration.current) return;
       setBooks([]);
       setProfile(null);
+      setIsAdmin(false);
+      setChapter(null);
       setBalance(0);
       setLedger([]);
       setPlans([]);
@@ -161,6 +186,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <Context.Provider
       value={{
+        chapter,
+        isAdmin,
         books,
         plans,
         economy,

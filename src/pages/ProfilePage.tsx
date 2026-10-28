@@ -14,7 +14,7 @@ import {
 import { useApp } from "../hooks/useApp";
 import { isDemo, supabase } from "../lib/supabase";
 export function ProfilePage() {
-  const { profile, books, balance, notify, user } = useApp();
+  const { chapter, isAdmin, profile, books, balance, notify, user } = useApp();
   return (
     <>
       <div className="page-intro">
@@ -39,7 +39,11 @@ export function ProfilePage() {
           </span>
           <div>
             <h2>{profile?.display_name || "Your family"}</h2>
-            <p>Viha’s Chapter · Powai, Mumbai</p>
+            <p>
+              {chapter
+                ? `${chapter.name} · ${chapter.area}, ${chapter.city}`
+                : "Your reading chapter"}
+            </p>
             <span className="safe-badge">
               <ShieldCheck size={14} />
               {profile?.trust_level || "New Reader"}
@@ -69,6 +73,11 @@ export function ProfilePage() {
           </Link>
         </div>
       </section>
+      {isAdmin && (
+        <Link className="button" to="/admin">
+          <ShieldCheck size={18} /> Open admin panel
+        </Link>
+      )}
       <div className="profile-links">
         {[
           {

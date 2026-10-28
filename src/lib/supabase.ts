@@ -5,6 +5,8 @@ if (Boolean(url) !== Boolean(key))
   throw new Error(
     "Set both Supabase environment variables, or leave both empty for demo mode.",
   );
+export const invitationFlow =
+  new URLSearchParams(location.hash.slice(1)).get("type") === "invite";
 export const supabase =
   url && key
     ? createClient(url, key, {
