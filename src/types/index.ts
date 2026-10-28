@@ -26,6 +26,8 @@ export interface Book {
   shared: number;
   created_at: string;
   cover_url?: string;
+  photo_paths?: string[];
+  photo_urls?: string[];
 }
 export interface Plan {
   id: string;
@@ -75,4 +77,6 @@ export type NewBook = Pick<
   | "protected_value"
   | "description"
   | "cover_url"
+  | "photo_paths"
+  | "photo_urls"
 >;

@@ -4914,3 +4914,30 @@ label > span {
 .book-scanner pre { text-align:left; white-space:pre-wrap; max-height:220px; overflow:auto; font-size:12px; }
 .book-scanner details { margin-top:16px; }
 @media(max-width:520px) { .scan-photos {grid-template-columns:1fr;} }
+
+.book-photo-picker { border:1px solid #d4e6f1; background:#f4faff; border-radius:16px; padding:22px; }
+.book-photo-picker h3 { margin:0 0 8px; }
+.book-photo-picker p { font-size:14px; line-height:1.6; color:#526f82; }
+.book-photo-picker label { margin:0; cursor:pointer; }
+.book-photo-picker label:focus-within { outline:3px solid #0075b9; outline-offset:3px; }
+.photo-count { font-size:12px!important; margin:12px 0; }
+.photo-picker-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.photo-picker-grid figure { margin:0; position:relative; background:white; border:1px solid #d4e6f1; border-radius:12px; overflow:hidden; }
+.photo-picker-grid img { width:100%; height:150px; object-fit:contain; display:block; }
+.photo-picker-grid figcaption { padding:8px; font-size:12px; color:#006ca9; text-align:center; }
+.photo-picker-grid figcaption button { color:#006ca9; background:transparent; border:0; text-decoration:underline; }
+.photo-remove { position:absolute; top:5px; right:5px; background:white; box-shadow:0 1px 5px #1233; }
+.external-cover-option { margin:16px 0; font-size:13px; color:#587186; }
+.external-cover-option label { margin-top:12px; }
+.book-gallery { gap:16px; }
+.gallery-main { display:flex; width:100%; flex-direction:column; align-items:center; gap:10px; font-size:12px; color:#346b8d; }
+.gallery-main > img { max-width:100%; width:100%; max-height:460px; object-fit:contain; border-radius:8px; }
+.gallery-thumbs { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+.gallery-thumbs button { width:58px; height:76px; padding:3px; border:2px solid transparent; background:white; border-radius:6px; }
+.gallery-thumbs button[aria-pressed="true"] { border-color:#0075b9; }
+.gallery-thumbs img { width:100%; height:100%; object-fit:contain; }
+.book-cover.large > img { object-fit:contain; background:#e8f1f6; }
+.photo-edit-panel { margin:24px 0; scroll-margin-top:24px; }
+.photo-edit-panel > .button { margin-top:18px; }
+.is-disabled { opacity:0.5; }
+@media(max-width:520px) { .photo-picker-grid {grid-template-columns:repeat(2,minmax(0,1fr));} .book-photo-picker {padding:16px;} }

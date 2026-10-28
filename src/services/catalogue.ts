@@ -1,3 +1,4 @@
+import { resolveBookPhotos } from "./bookPhotos";
 import { supabase } from "../lib/supabase";
 import type { Book, NewBook, Plan, LedgerEntry, FamilyProfile } from "../types";
 export async function loadCatalogue(): Promise<Book[]> {
@@ -7,7 +8,7 @@ export async function loadCatalogue(): Promise<Book[]> {
     .select("*")
     .limit(1000);
   if (error) throw error;
-  return (data ?? []) as Book[];
+  return resolveBookPhotos((data ?? []) as Book[]);
 }
 export async function loadAccount(userId: string) {
   if (!supabase) throw new Error("Live connection is unavailable.");

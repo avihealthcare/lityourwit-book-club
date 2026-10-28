@@ -11,7 +11,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { useApp } from "../hooks/useApp";
-import { BookCover } from "../components/BookCover";
+import { BookGallery } from "../components/BookGallery";
 import { BookShelf } from "../components/BookShelf";
 import { useState } from "react";
 import { isDemo } from "../lib/supabase";
@@ -39,10 +39,7 @@ export function BookDetailPage() {
         <ArrowLeft size={16} /> Back to the bookshelf
       </Link>
       <div className="detail-layout">
-        <div className="detail-cover-panel">
-          <BookCover book={book} large />
-          <span>Original placeholder cover · actual cover may differ</span>
-        </div>
+        <BookGallery key={book.id} book={book} />
         <div className="detail-copy">
           <div className="eyebrow">
             {book.genre} · AGES {book.age_band}

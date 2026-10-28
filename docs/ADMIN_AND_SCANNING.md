@@ -31,3 +31,11 @@ All worker, WebAssembly and language files are copied from pinned npm packages a
 ## Verification
 
 Run `npm run lint`, `npm test`, and `npm run build`. Database tests execute all migrations in PGlite and verify both denied member requests and authorized admin operations. Scanning tests cover ISBN validation, OCR parsing and catalogue fallback. Live verification should additionally check actual phone photos and an invitation sent to a consenting recipient.
+
+## Listing photographs
+
+A book copy can have up to six owner photographs. Add them during listing, reuse the front/back scan photos with **Use these photos in the listing**, or choose **My bookshelf → Manage photos** later. **Make cover** moves a photograph to the first position; that photo appears in Explore and shelf cards. The detail page has a selectable gallery and full-size links.
+
+Listing photographs are distinct from OCR input: scan photos stay local unless the owner explicitly chooses to add them to the listing. Listing uploads are resized to a 1600-pixel maximum edge, converted to JPEG to remove original metadata, and capped at 2 MB each. JPG, PNG and WebP inputs up to 20 MB are supported. An existing external HTTPS cover URL remains an optional fallback.
+
+The private `book-photos` bucket allows owner uploads and uses the same chapter/publication visibility as books. Owners and administrators can read pending photos; another chapter cannot read them. Clients store permanent object paths on `book_copies`, then request one-hour signed viewing links when loading the catalogue. These links are temporary bearer links and are not stored in the database. Only the owner can update a copy's photo paths, and the database checks path ownership, duplicates and the six-photo maximum. Failed uploads are cleaned up when possible; linked photos cannot be deleted directly by a client. Replaced/unlinked existing objects remain private to the owner and administrator pending storage housekeeping.
