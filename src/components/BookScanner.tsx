@@ -8,8 +8,10 @@ import {
 } from "../lib/bookScan";
 export function BookScanner({
   onResult,
+  onPhotos,
 }: {
   onResult: (result: ScanDetails) => void;
+  onPhotos?: (images: string[]) => Promise<void>;
 }) {
   const [front, setFront] = useState(""),
     [back, setBack] = useState(""),
@@ -17,6 +19,7 @@ export function BookScanner({
     [status, setStatus] = useState(""),
     [error, setError] = useState(""),
     [raw, setRaw] = useState("");
+  const [copying, setCopying] = useState(false);
   const cancel = useRef<AbortController | null>(null),
     mounted = useRef(true);
   useEffect(() => {
@@ -171,6 +174,35 @@ export function BookScanner({
         <ScanLine size={17} />
         {busy ? "Reading your book…" : "Read and fill book details"}
       </button>
+      {onPhotos && front && back && (
+        <button
+          type="button"
+          className="button secondary"
+          disabled={busy || copying}
+          onClick={async () => {
+            setCopying(true);
+            setError("");
+            try {
+              await onPhotos([front, back]);
+              setStatus(
+                "Both cover photos have been added to your listing photographs below.",
+              );
+            } catch (e) {
+              setError(
+                e instanceof Error
+                  ? e.message
+                  : "Could not add the photographs.",
+              );
+            } finally {
+              setCopying(false);
+            }
+          }}
+        >
+          {copying
+            ? "Preparing photographs…"
+            : "Use these photos in the listing"}
+        </button>
+      )}
       {busy && (
         <button
           type="button"

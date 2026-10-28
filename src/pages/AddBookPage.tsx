@@ -12,6 +12,14 @@ import { useApp } from "../hooks/useApp";
 import { isDemo } from "../lib/supabase";
 import { isValidIsbn } from "../lib/catalogue";
 import { BookScanner } from "../components/BookScanner";
+import { BookPhotoPicker } from "../components/BookPhotoPicker";
+import {
+  cleanupBookPhotos,
+  jpegBlob,
+  selectBookPhoto,
+  uploadBookPhotos,
+  type SelectedPhoto,
+} from "../services/bookPhotos";
 import type { NewBook } from "../types";
 export function AddBookPage() {
   const { addBook, notify, user } = useApp(),
@@ -19,6 +27,8 @@ export function AddBookPage() {
   const [method, setMethod] = useState("manual"),
     [error, setError] = useState(""),
     [saving, setSaving] = useState(false);
+  const [photos, setPhotos] = useState<SelectedPhoto[]>([]);
+  const [preparingPhotos, setPreparingPhotos] = useState(false);
   const [form, setForm] = useState<NewBook>({
     title: "",
     author: "",
@@ -52,15 +62,21 @@ export function AddBookPage() {
       );
       return;
     }
+    if (preparingPhotos || saving) return;
     setSaving(true);
+    let uploaded: string[] = [];
     try {
+      uploaded = await uploadBookPhotos(photos, user?.id || "demo");
       await addBook({
         ...form,
+        photo_paths: uploaded,
+        ...(isDemo ? { photo_urls: photos.map((p) => p.preview) } : {}),
         title: form.title.trim(),
         author: form.author.trim(),
       });
       navigate("/my-books");
     } catch (e) {
+      await cleanupBookPhotos(uploaded);
       setError(
         e instanceof Error
           ? e.message
@@ -103,6 +119,27 @@ export function AddBookPage() {
           </div>
           {method === "isbn" && (
             <BookScanner
+              onPhotos={async (images) => {
+                if (photos.length + images.length > 6)
+                  throw new Error(
+                    "Remove a listing photograph first. A book can have up to six photographs.",
+                  );
+                setPreparingPhotos(true);
+                try {
+                  const selected = await Promise.all(
+                    images.map((image, i) =>
+                      selectBookPhoto(
+                        new File([jpegBlob(image)], `book-cover-${i}.jpg`, {
+                          type: "image/jpeg",
+                        }),
+                      ),
+                    ),
+                  );
+                  setPhotos((current) => [...current, ...selected]);
+                } finally {
+                  setPreparingPhotos(false);
+                }
+              }}
               onResult={(details) =>
                 setForm((current) => ({
                   ...current,
@@ -114,27 +151,25 @@ export function AddBookPage() {
               }
             />
           )}
-          <div className="cover-upload">
-            <span className="upload-icon">
-              <BookOpen size={30} />
-            </span>
-            <div>
-              <h3>A cover makes a lovely first impression.</h3>
-              <p>
-                Add a public HTTPS cover URL, or use our original placeholder.
-              </p>
-            </div>
-          </div>
-          <label>
-            Cover image URL <span>(optional)</span>
-            <input
-              type="url"
-              placeholder="https://…"
-              value={form.cover_url}
-              onChange={(e) => change("cover_url", e.target.value)}
-              pattern="https://.*"
-            />
-          </label>
+          <BookPhotoPicker
+            photos={photos}
+            onChange={setPhotos}
+            disabled={saving || preparingPhotos}
+            onBusyChange={setPreparingPhotos}
+          />
+          <details className="external-cover-option">
+            <summary>Use an existing cover image link instead</summary>
+            <label>
+              Cover image URL (optional)
+              <input
+                type="url"
+                placeholder="https://…"
+                value={form.cover_url}
+                onChange={(e) => change("cover_url", e.target.value)}
+                pattern="https://.*"
+              />
+            </label>
+          </details>
           <div className="form-grid">
             <label>
               Book title{" "}
@@ -250,9 +285,13 @@ export function AddBookPage() {
             <ShieldCheck size={17} /> Listings are reviewed before appearing in
             the chapter catalogue.
           </p>
-          <button disabled={saving} className="button" type="submit">
+          <button
+            disabled={saving || preparingPhotos}
+            className="button"
+            type="submit"
+          >
             <Plus size={18} />
-            {saving ? "Submitting your story…" : "Share this book"}
+            {saving ? "Uploading photos and submitting…" : "Share this book"}
           </button>
           {!isDemo && !user && (
             <Link to="/auth">Sign in to your parent account</Link>
