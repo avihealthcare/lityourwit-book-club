@@ -108,7 +108,11 @@ export async function enrichByIsbn(details: ScanDetails): Promise<ScanDetails> {
     description: description.slice(0, 2000),
   };
 }
-export async function preparePhoto(file: File): Promise<string> {
+export async function preparePhoto(
+  file: File,
+  maxEdge = 2200,
+  quality = 0.92,
+): Promise<string> {
   if (!["image/jpeg", "image/png", "image/webp"].includes(file.type))
     throw new Error(
       "Choose a JPG, PNG or WebP photo. Convert HEIC photos to JPG first.",
@@ -122,7 +126,7 @@ export async function preparePhoto(file: File): Promise<string> {
     await img.decode();
     if (img.width * img.height > 50_000_000)
       throw new Error("Choose a photo with a lower resolution.");
-    const scale = Math.min(1, 2200 / Math.max(img.width, img.height));
+    const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
     const canvas = document.createElement("canvas");
     canvas.width = Math.round(img.width * scale);
     canvas.height = Math.round(img.height * scale);
@@ -132,7 +136,7 @@ export async function preparePhoto(file: File): Promise<string> {
     ctx.fillStyle = "#fff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL("image/jpeg", 0.92);
+    return canvas.toDataURL("image/jpeg", quality);
   } finally {
     URL.revokeObjectURL(url);
   }

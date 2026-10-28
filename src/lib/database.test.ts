@@ -18,6 +18,13 @@ beforeAll(async () => {
   await db.exec(
     `create role anon; create role authenticated; create schema auth; create table auth.users(id uuid primary key, email text, raw_user_meta_data jsonb default '{}'); create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$; grant usage on schema auth to authenticated; grant execute on function auth.uid() to authenticated;`,
   );
+  await db.exec(`create schema storage;
+    create table storage.buckets(id text primary key,name text not null,public boolean not null default false,file_size_limit bigint,allowed_mime_types text[]);
+    create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text references storage.buckets(id),name text not null,unique(bucket_id,name));
+    alter table storage.objects enable row level security;
+    grant usage on schema storage to authenticated,anon;
+    grant select on storage.objects to authenticated,anon;
+    grant insert,delete on storage.objects to authenticated;`);
   for (const file of readdirSync("supabase/migrations")
     .filter((name) => name.endsWith(".sql"))
     .sort()) {
@@ -372,5 +379,180 @@ describe("administrator controls", () => {
     await expect(
       asParent(admin, "update public.bookcoin_wallets set balance=9999"),
     ).rejects.toThrow(/permission denied/);
+  });
+});
+
+describe("book photographs and storage isolation", () => {
+  const photoA = `${parentA}/11111111-1111-4111-8111-111111111111.jpg`;
+  const photoB = `${parentB}/22222222-2222-4222-8222-222222222222.jpg`;
+  let copy: string;
+  it("accepts owner uploads and rejects another owner's path", async () => {
+    await asParent(
+      parentA,
+      `insert into storage.objects(bucket_id,name) values('book-photos','${photoA}')`,
+    );
+    await asParent(
+      parentB,
+      `insert into storage.objects(bucket_id,name) values('book-photos','${photoB}')`,
+    );
+    await expect(
+      asParent(
+        parentA,
+        `insert into storage.objects(bucket_id,name) values('book-photos','${parentB}/33333333-3333-4333-8333-333333333333.jpg')`,
+      ),
+    ).rejects.toThrow(/row-level security/);
+    expect(
+      (await asParent(parentA, "select name from storage.objects")).rows,
+    ).toEqual([{ name: photoA }]);
+  });
+  it("atomically saves listing photographs and keeps pending photos private", async () => {
+    const payload = JSON.stringify({
+      title: "Photo Story",
+      author: "Photo Author",
+      age_band: "8–10",
+      genre: "Fantasy",
+      language: "English",
+      condition: "Good",
+      protected_value: 200,
+      photo_paths: [photoA],
+    });
+    const result = await asParent(
+      parentA,
+      `select public.submit_book('${payload}') as id`,
+    );
+    copy = (result.rows[0] as { id: string }).id;
+    expect(
+      (
+        await asParent(
+          parentA,
+          `select photo_paths from public.catalogue where id='${copy}'`,
+        )
+      ).rows,
+    ).toEqual([{ photo_paths: [photoA] }]);
+    expect(
+      (
+        await asParent(
+          parentB,
+          `select name from storage.objects where name='${photoA}'`,
+        )
+      ).rows,
+    ).toEqual([]);
+  });
+  it("only shares approved photos with the same chapter", async () => {
+    // Parent B was assigned a different chapter by the administration tests.
+    await db.exec(
+      `update public.books set published=true where id=(select book_id from public.book_copies where id='${copy}');update public.book_copies set availability='Available' where id='${copy}';`,
+    );
+    expect(
+      (
+        await asParent(
+          parentB,
+          `select name from storage.objects where name='${photoA}'`,
+        )
+      ).rows,
+    ).toEqual([]);
+    await db.exec(
+      `update public.profiles set chapter_id=(select chapter_id from public.profiles where id='${parentA}') where id='${parentB}'`,
+    );
+    expect(
+      (
+        await asParent(
+          parentB,
+          `select name from storage.objects where name='${photoA}'`,
+        )
+      ).rows,
+    ).toEqual([{ name: photoA }]);
+  });
+  it("allows owner photo editing, enforces ownership and maximum count", async () => {
+    await asParent(
+      parentA,
+      `update public.book_copies set photo_paths='{}' where id='${copy}'`,
+    );
+    expect(
+      (
+        await asParent(
+          parentB,
+          `update public.book_copies set photo_paths=array['${photoB}'] where id='${copy}' returning id`,
+        )
+      ).rows,
+    ).toEqual([]);
+    await expect(
+      asParent(
+        parentA,
+        `update public.book_copies set photo_paths=array['${photoB}'] where id='${copy}'`,
+      ),
+    ).rejects.toThrow(/book_copy_photos_owned/);
+    await expect(
+      asParent(
+        parentA,
+        `update public.book_copies set photo_paths=array['${photoA}','${photoA}'] where id='${copy}'`,
+      ),
+    ).rejects.toThrow(/book_copy_photos_owned/);
+    const paths = Array.from(
+      { length: 7 },
+      (_, i) =>
+        `'${parentA}/00000000-0000-4000-8000-${String(i).padStart(12, "0")}.jpg'`,
+    ).join(",");
+    await expect(
+      asParent(
+        parentA,
+        `update public.book_copies set photo_paths=array[${paths}] where id='${copy}'`,
+      ),
+    ).rejects.toThrow(/book_copy_photos_owned/);
+    await expect(
+      asParent(
+        parentA,
+        `update public.book_copies set availability='On Loan' where id='${copy}'`,
+      ),
+    ).rejects.toThrow(/permission denied/);
+    await asParent(
+      parentA,
+      `update public.book_copies set photo_paths=array['${photoA}'] where id='${copy}'`,
+    );
+  });
+  it("protects linked photos and permits cleanup only after unlinking", async () => {
+    expect(
+      (
+        await asParent(
+          parentA,
+          `delete from storage.objects where name='${photoA}' returning name`,
+        )
+      ).rows,
+    ).toEqual([]);
+    await asParent(
+      parentA,
+      `update public.book_copies set photo_paths='{}' where id='${copy}'`,
+    );
+    expect(
+      (
+        await asParent(
+          parentA,
+          `delete from storage.objects where name='${photoA}' returning name`,
+        )
+      ).rows,
+    ).toEqual([{ name: photoA }]);
+  });
+  it("keeps the bucket private and restricts prepared images", async () => {
+    expect(
+      (
+        await db.query(
+          "select public,file_size_limit,allowed_mime_types from storage.buckets where id='book-photos'",
+        )
+      ).rows,
+    ).toEqual([
+      {
+        public: false,
+        file_size_limit: 2097152,
+        allowed_mime_types: ["image/jpeg"],
+      },
+    ]);
+    await db.exec("set role anon");
+    try {
+      expect((await db.query("select name from storage.objects")).rows).toEqual(
+        [],
+      );
+    } finally {
+      await db.exec("reset role");
+    }
   });
 });

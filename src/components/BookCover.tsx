@@ -11,10 +11,15 @@ export function BookCover({
       className={`book-cover ${large ? "large" : ""}`}
       style={{ backgroundColor: book.color || "#48766a" }}
     >
-      {book.cover_url ? (
+      {book.photo_urls?.find(Boolean) || book.cover_url ? (
         <img
-          src={book.cover_url}
+          src={book.photo_urls?.find(Boolean) || book.cover_url}
           alt={`Cover of ${book.title}`}
+          loading={large ? "eager" : "lazy"}
+          decoding="async"
+          onLoad={(e) => {
+            e.currentTarget.style.display = "";
+          }}
           onError={(e) => {
             e.currentTarget.style.display = "none";
           }}

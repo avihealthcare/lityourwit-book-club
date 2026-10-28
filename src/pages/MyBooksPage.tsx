@@ -1,11 +1,60 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Plus, BookOpen, Heart, Clock } from "lucide-react";
+import { Plus, BookOpen, Heart, Clock, Camera, X } from "lucide-react";
 import { useApp } from "../hooks/useApp";
 import { BookCard } from "../components/BookCard";
 import { BookCover } from "../components/BookCover";
+import { BookPhotoPicker } from "../components/BookPhotoPicker";
+import { updateBookPhotos, type SelectedPhoto } from "../services/bookPhotos";
+import type { Book } from "../types";
+import { isDemo } from "../lib/supabase";
 export function MyBooksPage() {
-  const { books, profile, saved } = useApp();
+  const { books, profile, saved, user, refresh, notify } = useApp();
+  const [editing, setEditing] = useState<Book | null>(null),
+    [photos, setPhotos] = useState<SelectedPhoto[]>([]),
+    [saving, setSaving] = useState(false),
+    [preparing, setPreparing] = useState(false),
+    [photoError, setPhotoError] = useState("");
+  function editPhotos(book: Book) {
+    if (isDemo) {
+      notify("Sign in to the connected app to update existing book photos.");
+      return;
+    }
+    setPhotos(
+      (book.photo_paths || []).map((path, index) => ({
+        id: path,
+        path,
+        preview: book.photo_urls?.[index] || "",
+      })),
+    );
+    setEditing(book);
+    setPhotoError("");
+  }
+  async function savePhotos() {
+    if (!editing || !user || saving || preparing) return;
+    setSaving(true);
+    setPhotoError("");
+    try {
+      await updateBookPhotos(editing.id, photos, user.id);
+      setEditing(null);
+      notify("Book photographs updated.");
+      await refresh();
+    } catch (e) {
+      setPhotoError(
+        e instanceof Error
+          ? e.message
+          : "Could not save photographs. Please try again.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+  useEffect(() => {
+    if (editing)
+      document
+        .querySelector(".photo-edit-panel")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [editing]);
   const [tab, setTab] = useState("My books");
   const owned = books.filter((b) => b.owner_id === profile?.id),
     visible =
@@ -77,6 +126,12 @@ export function MyBooksPage() {
                   <Link className="text-link" to={`/books/${b.id}`}>
                     View book →
                   </Link>
+                  <button
+                    className="button secondary"
+                    onClick={() => editPhotos(b)}
+                  >
+                    <Camera size={16} /> Manage photos
+                  </button>
                 </div>
               </article>
             ))}
@@ -104,6 +159,42 @@ export function MyBooksPage() {
               : "Explore the bookshelf"}
           </Link>
         </div>
+      )}
+      {editing && (
+        <section
+          className="panel photo-edit-panel"
+          aria-label={`Manage photos for ${editing.title}`}
+        >
+          <div className="section-heading">
+            <h2>Photographs of {editing.title}</h2>
+            <button
+              className="icon-button"
+              aria-label="Close photo editor"
+              disabled={saving || preparing}
+              onClick={() => setEditing(null)}
+            >
+              <X />
+            </button>
+          </div>
+          <BookPhotoPicker
+            photos={photos}
+            onChange={setPhotos}
+            disabled={saving}
+            onBusyChange={setPreparing}
+          />
+          {photoError && (
+            <p className="form-error" role="alert">
+              {photoError}
+            </p>
+          )}
+          <button
+            className="button"
+            disabled={saving || preparing}
+            onClick={() => void savePhotos()}
+          >
+            {saving ? "Saving photographs…" : "Save photographs"}
+          </button>
+        </section>
       )}
       <div className="soft-note">
         <Clock size={19} />
