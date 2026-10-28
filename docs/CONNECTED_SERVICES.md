@@ -10,9 +10,11 @@ Last verified: 28 October 2026.
 - Repository integration: avihealthcare/lityourwit-book-club
 - Production database deployment from `main` is explicitly approved by the owner and is managed through the existing Supabase GitHub integration. No competing database deployment workflow is used.
 - Automatic database preview branching remains off (it requires a paid plan).
-- Core schema and performance hardening migrations are applied. The local migration versions match hosted migration history, so future GitHub deployments will not replay the foundation.
-- All app tables have RLS. Wallet and ledger browser writes are denied. Security Advisor reports no findings.
+- Core schema, performance hardening and administration migrations are applied. The local migration versions match hosted migration history, so future GitHub deployments will not replay the foundation.
+- All app tables have RLS. Wallet and ledger browser writes are denied. The latest advisor check reports no security errors; it flags disabled leaked-password protection and the intentionally closed private activity table.
 - Email/password is enabled and email verification is required.
+- The `admin-invite` Edge Function is deployed with JWT verification and an additional current-role check.
+- The existing verified owner account has the backend admin role and approved chapter membership.
 - Current Site URL: https://lityourwit-book-club.netlify.app
 - Exact callback allowlist: http://127.0.0.1:5173/auth and http://localhost:5173/auth, plus https://lityourwit-book-club.netlify.app/auth
 - `.env.local` contains only the project URL and browser publishable key. It is gitignored. Do not commit this file or place server secrets in VITE\_ variables.
