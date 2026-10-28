@@ -27,6 +27,7 @@ export async function loadAccount(userId: string) {
       .select("*")
       .eq("user_id", userId)
       .order("created_at", { ascending: false }),
+    supabase.rpc("is_admin"),
     supabase.from("membership_plans").select("*"),
     supabase
       .from("configuration")
@@ -35,12 +36,23 @@ export async function loadAccount(userId: string) {
       .single(),
   ]);
   for (const result of results) if (result.error) throw result.error;
+  const primaryChapter = results[0].data?.chapter_id;
+  const chapterResult = primaryChapter
+    ? await supabase
+        .from("chapters")
+        .select("id,name,area,city,description,active")
+        .eq("id", primaryChapter)
+        .maybeSingle()
+    : null;
+  if (chapterResult?.error) throw chapterResult.error;
   return {
+    chapter: chapterResult?.data ?? null,
     profile: results[0].data as FamilyProfile | null,
     balance: (results[1].data as { balance: number } | null)?.balance ?? 0,
     ledger: (results[2].data ?? []) as LedgerEntry[],
-    plans: (results[3].data ?? []) as Plan[],
-    economy: results[4].data?.value as Record<string, number>,
+    isAdmin: results[3].data === true,
+    plans: (results[4].data ?? []) as Plan[],
+    economy: results[5].data?.value as Record<string, number>,
   };
 }
 export async function saveBook(book: NewBook) {

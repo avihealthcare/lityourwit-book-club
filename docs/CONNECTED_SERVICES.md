@@ -1,6 +1,6 @@
 # Connected services
 
-Last verified: 26 October 2026.
+Last verified: 28 October 2026.
 
 ## Supabase
 
@@ -13,13 +13,22 @@ Last verified: 26 October 2026.
 - Core schema and performance hardening migrations are applied. The local migration versions match hosted migration history, so future GitHub deployments will not replay the foundation.
 - All app tables have RLS. Wallet and ledger browser writes are denied. Security Advisor reports no findings.
 - Email/password is enabled and email verification is required.
-- Current Site URL: http://127.0.0.1:5173
-- Exact callback allowlist: http://127.0.0.1:5173/auth and http://localhost:5173/auth
+- Current Site URL: https://lityourwit-book-club.netlify.app
+- Exact callback allowlist: http://127.0.0.1:5173/auth and http://localhost:5173/auth, plus https://lityourwit-book-club.netlify.app/auth
 - `.env.local` contains only the project URL and browser publishable key. It is gitignored. Do not commit this file or place server secrets in VITE\_ variables.
 
 The hosted database intentionally contains no demo families, books, or fake wallets. New real accounts are provisioned with zero coins and pending chapter membership; paid membership activation and borrowing remain later phases.
 
-When a Netlify production hostname is available, set that hostname as the Supabase Site URL and add its exact `/auth` callback. Configure the two Vite environment variables in Netlify. Avoid blanket wildcard callback access on a production project.
+## Netlify
+
+- Public website: https://lityourwit-book-club.netlify.app (verified signed out).
+- Project ID: `386aed79-65d3-4fc1-a8ba-dd07b01baba6`.
+- Linked GitHub repository, production branch `main`, build `npm run build`, publish folder `dist`.
+- Both browser Supabase environment variables are configured in Netlify.
+- `prebuild` copies pinned local OCR worker/model assets into the output; photo recognition does not need an AI API key.
+- Supabase production sign-in callback is configured. Deploy previews remain private.
+
+See [ADMIN_AND_SCANNING.md](ADMIN_AND_SCANNING.md) for administration and scanning.
 
 ## GitHub
 
@@ -35,6 +44,6 @@ The committed CI workflow checks lint, types, tests and build for pull requests 
 2. Run the required `verify` check (lint, TypeScript, tests and build).
 3. Promote tested changes from `develop` to `main` with a pull request.
 4. Supabase production deployments use working directory `.`, production branch `main`. Local migration versions already match the applied hosted history.
-5. Connect Netlify separately for website deployments, set the two browser environment variables and add the final website `/auth` callback to Supabase.
+5. Netlify automatically publishes successful `main` builds. Verify `/auth`, `/admin` and the scanner after deployment.
 
 Branch protection is configured after the initial import and successful CI, requiring pull requests, current passing checks, reviews and resolution of review conversations. The account owner retains the default administrator bypass; add an independent reviewer before public launch.

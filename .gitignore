@@ -16,3 +16,5 @@ coverage/
 
 /.local-verification/
 /docs/screenshots/
+
+/public/ocr/

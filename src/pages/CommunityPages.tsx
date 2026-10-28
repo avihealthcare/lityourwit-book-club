@@ -13,14 +13,18 @@ import {
 import { useApp } from "../hooks/useApp";
 import { isDemo } from "../lib/supabase";
 export function ChapterPage() {
-  const { books, notify } = useApp();
+  const { chapter, books, notify } = useApp();
   return (
     <>
       <div className="page-intro">
         <div>
           <div className="eyebrow">ONE NEIGHBOURHOOD. SO MANY STORIES.</div>
-          <h1>Welcome to Viha’s Chapter.</h1>
-          <p>Powai, Mumbai · Our founding reading neighbourhood</p>
+          <h1>Welcome to {chapter?.name || "your chapter"}.</h1>
+          <p>
+            {chapter
+              ? `${chapter.area}, ${chapter.city} · ${chapter.description}`
+              : "Your local reading neighbourhood"}
+          </p>
         </div>
         <button
           className="button"
@@ -58,7 +62,7 @@ export function ChapterPage() {
         <div className="community-emblem">
           <BookOpen size={82} />
           <span>EST. 2026</span>
-          <strong>Viha’s Chapter</strong>
+          <strong>{chapter?.name || "Your chapter"}</strong>
           <small>READ • SHARE • GROW</small>
         </div>
       </section>
@@ -203,7 +207,8 @@ export function SettingsPage() {
         </button>
         <p className="safety-note">
           <ShieldCheck size={16} />
-          Camera access is used only when you open the ISBN preview.
+          Camera access is used only when you choose to photograph a book.
+          Photos are read on your device.
         </p>
       </section>
     </>

@@ -23,6 +23,7 @@ import {
 } from "./pages/CommunityPages";
 import { MembershipPage } from "./pages/MembershipPage";
 import { WelcomePage, AuthPage } from "./pages/AuthPage";
+import { AdminPage } from "./pages/AdminPage";
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
@@ -51,6 +52,7 @@ export function App() {
               <Route path="/chapter" element={<ChapterPage />} />
               <Route path="/membership" element={<MembershipPage />} />
               <Route path="/requests" element={<RequestsPage />} />
+              <Route path="/admin" element={<AdminPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route
                 path="*"

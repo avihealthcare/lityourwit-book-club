@@ -16,7 +16,7 @@ async function asParent(id: string, sql: string) {
 }
 beforeAll(async () => {
   await db.exec(
-    `create role anon; create role authenticated; create schema auth; create table auth.users(id uuid primary key, raw_user_meta_data jsonb default '{}'); create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$; grant usage on schema auth to authenticated; grant execute on function auth.uid() to authenticated;`,
+    `create role anon; create role authenticated; create schema auth; create table auth.users(id uuid primary key, email text, raw_user_meta_data jsonb default '{}'); create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$; grant usage on schema auth to authenticated; grant execute on function auth.uid() to authenticated;`,
   );
   for (const file of readdirSync("supabase/migrations")
     .filter((name) => name.endsWith(".sql"))
@@ -167,5 +167,210 @@ describe("core database migration and isolation", () => {
       "select relname from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r' and not c.relrowsecurity",
     );
     expect(result.rows).toEqual([]);
+  });
+});
+
+describe("administrator controls", () => {
+  const admin = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+  beforeAll(async () => {
+    await db.exec(
+      `insert into auth.users(id,email) values('${admin}','admin@example.test'); update private.user_roles set role='admin' where user_id='${admin}';`,
+    );
+  });
+  it("denies normal members the admin snapshot and mutations", async () => {
+    expect(
+      (await asParent(parentA, "select public.is_admin() as allowed")).rows,
+    ).toEqual([{ allowed: false }]);
+    await expect(
+      asParent(parentA, "select public.admin_snapshot()"),
+    ).rejects.toThrow(/Administrator access required/);
+    await expect(
+      asParent(
+        parentA,
+        `select public.admin_manage('chapter_save','{"name":"Unauthorized","area":"A","city":"B"}')`,
+      ),
+    ).rejects.toThrow(/Administrator access required/);
+  });
+  it("allows an admin to create and manage chapters and records an audit event", async () => {
+    await asParent(
+      admin,
+      `select public.admin_manage('chapter_save','{"name":"New Chapter","area":"Andheri","city":"Mumbai"}')`,
+    );
+    const result = await asParent(
+      admin,
+      "select public.admin_snapshot() as data",
+    );
+    const data = (result.rows[0] as { data: unknown }).data as {
+      chapters: { name: string }[];
+      activity: { action: string }[];
+    };
+    expect(data.chapters.some((c) => c.name === "New Chapter")).toBe(true);
+    expect(data.activity.some((a) => a.action === "chapter_save")).toBe(true);
+    await expect(
+      asParent(parentA, "select * from private.admin_activity"),
+    ).rejects.toThrow(/permission denied/);
+  });
+  it("cannot remove the current administrator", async () => {
+    await expect(
+      asParent(
+        admin,
+        `select public.admin_manage('member_remove','{"id":"${admin}"}')`,
+      ),
+    ).rejects.toThrow(/own administrator/);
+  });
+  it("removes and restores a member while preserving records, blocking existing tokens", async () => {
+    await asParent(
+      admin,
+      `select public.admin_manage('member_remove','{"id":"${parentB}"}')`,
+    );
+    expect(
+      (await asParent(parentB, "select * from public.catalogue")).rows,
+    ).toEqual([]);
+    const payload = JSON.stringify({
+      title: "Suspended Book",
+      author: "A",
+      age_band: "8–10",
+      genre: "Fantasy",
+      language: "English",
+      condition: "Good",
+      protected_value: 100,
+    });
+    await expect(
+      asParent(parentB, `select public.submit_book('${payload}')`),
+    ).rejects.toThrow();
+    expect(
+      (
+        await db.query(
+          `select count(*)::int as n from public.profiles where id='${parentB}'`,
+        )
+      ).rows,
+    ).toEqual([{ n: 1 }]);
+    await asParent(
+      admin,
+      `select public.admin_manage('member_restore','{"id":"${parentB}"}')`,
+    );
+    expect(
+      (
+        await asParent(
+          parentB,
+          "select id from public.profiles where id=auth.uid()",
+        )
+      ).rows,
+    ).toEqual([{ id: parentB }]);
+  });
+  it("only publishes a pending copy after administrator approval", async () => {
+    const copy = (
+      await db.query<{ id: string }>(
+        "select id from public.catalogue where title='Test Story' limit 1",
+      )
+    ).rows[0].id;
+    await asParent(
+      admin,
+      `select public.admin_manage('book_moderate','{"id":"${copy}","availability":"Available"}')`,
+    );
+    expect(
+      (
+        await asParent(
+          parentB,
+          "select title from public.catalogue where title='Test Story'",
+        )
+      ).rows,
+    ).toEqual([{ title: "Test Story" }]);
+    await asParent(
+      admin,
+      `select public.admin_manage('book_moderate','{"id":"${copy}","availability":"Temporarily Unavailable"}')`,
+    );
+    expect(
+      (
+        await asParent(
+          parentB,
+          "select title from public.catalogue where title='Test Story'",
+        )
+      ).rows,
+    ).toEqual([]);
+  });
+  it("rejects invalid settings without changing configuration", async () => {
+    await expect(
+      asParent(
+        admin,
+        `select public.admin_manage('configuration_save','{"key":"economy","value":{"borrow":-1}}')`,
+      ),
+    ).rejects.toThrow();
+    await expect(
+      asParent(
+        admin,
+        `select public.admin_manage('configuration_save','{"key":"unknown","value":{}}')`,
+      ),
+    ).rejects.toThrow();
+  });
+  it("saves a member chapter and approval and persists plan and business settings", async () => {
+    const chapter = (
+      await db.query<{ id: string }>(
+        "select id from public.chapters where name='New Chapter'",
+      )
+    ).rows[0].id;
+    await asParent(
+      admin,
+      `select public.admin_manage('member_save','{"id":"${parentB}","display_name":"Updated Family","chapter_id":"${chapter}","status":"approved","suspended":false}')`,
+    );
+    expect(
+      (
+        await asParent(
+          parentB,
+          "select display_name,chapter_id from public.profiles where id=auth.uid()",
+        )
+      ).rows,
+    ).toEqual([{ display_name: "Updated Family", chapter_id: chapter }]);
+    const plan = (
+      await db.query<{ data: Record<string, unknown> }>(
+        "select to_jsonb(p) as data from public.membership_plans p where id='reader'",
+      )
+    ).rows[0].data;
+    await asParent(
+      admin,
+      `select public.admin_manage('plan_save','${JSON.stringify({ ...plan, annual_price: 600 })}')`,
+    );
+    expect(
+      (
+        await db.query(
+          "select annual_price from public.membership_plans where id='reader'",
+        )
+      ).rows,
+    ).toEqual([{ annual_price: 600 }]);
+    const economy = (
+      await db.query<{ value: Record<string, number> }>(
+        "select value from public.configuration where key='economy'",
+      )
+    ).rows[0].value;
+    await asParent(
+      admin,
+      `select public.admin_manage('configuration_save','${JSON.stringify({ key: "economy", value: { ...economy, borrow: 6 } })}')`,
+    );
+    expect(
+      (
+        await db.query<{ value: Record<string, number> }>(
+          "select value from public.configuration where key='economy'",
+        )
+      ).rows[0].value.borrow,
+    ).toBe(6);
+  });
+  it("checks current database status for administrator privileges", async () => {
+    await db.exec(
+      `update public.parent_accounts set suspended=true where user_id='${admin}'`,
+    );
+    expect(
+      (await asParent(admin, "select public.is_admin() as allowed")).rows,
+    ).toEqual([{ allowed: false }]);
+    await expect(
+      asParent(admin, "select public.admin_snapshot()"),
+    ).rejects.toThrow(/Administrator access required/);
+    await db.exec(
+      `update public.parent_accounts set suspended=false where user_id='${admin}'`,
+    );
+  });
+  it("does not give even an administrator direct wallet write privileges", async () => {
+    await expect(
+      asParent(admin, "update public.bookcoin_wallets set balance=9999"),
+    ).rejects.toThrow(/permission denied/);
   });
 });

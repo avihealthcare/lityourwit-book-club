@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import {
   Camera,
   BookOpen,
@@ -6,22 +6,19 @@ import {
   Sparkles,
   ShieldCheck,
   Plus,
-  X,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useApp } from "../hooks/useApp";
 import { isDemo } from "../lib/supabase";
 import { isValidIsbn } from "../lib/catalogue";
+import { BookScanner } from "../components/BookScanner";
 import type { NewBook } from "../types";
 export function AddBookPage() {
   const { addBook, notify, user } = useApp(),
     navigate = useNavigate();
   const [method, setMethod] = useState("manual"),
-    [camera, setCamera] = useState(false),
-    [message, setMessage] = useState(""),
     [error, setError] = useState(""),
     [saving, setSaving] = useState(false);
-  const video = useRef<HTMLVideoElement>(null);
   const [form, setForm] = useState<NewBook>({
     title: "",
     author: "",
@@ -34,30 +31,6 @@ export function AddBookPage() {
     description: "",
     cover_url: "",
   });
-  useEffect(() => {
-    if (!camera) return;
-    let stream: MediaStream | undefined,
-      cancelled = false;
-    void navigator.mediaDevices
-      ?.getUserMedia({ video: { facingMode: "environment" } })
-      .then((s) => {
-        if (cancelled) {
-          s.getTracks().forEach((t) => t.stop());
-          return;
-        }
-        stream = s;
-        if (video.current) video.current.srcObject = s;
-      })
-      .catch(() =>
-        setMessage(
-          "Camera access is unavailable. Enter the ISBN below instead.",
-        ),
-      );
-    return () => {
-      cancelled = true;
-      stream?.getTracks().forEach((t) => t.stop());
-    };
-  }, [camera]);
   const change = (key: keyof NewBook, value: string | number) =>
     setForm({ ...form, [key]: value });
   async function submit(e: FormEvent) {
@@ -116,7 +89,6 @@ export function AddBookPage() {
               className={method === "manual" ? "active" : ""}
               onClick={() => {
                 setMethod("manual");
-                setCamera(false);
               }}
             >
               <BookOpen size={17} /> Add manually
@@ -126,44 +98,21 @@ export function AddBookPage() {
               className={method === "isbn" ? "active" : ""}
               onClick={() => setMethod("isbn")}
             >
-              <ScanBarcode size={18} /> Scan ISBN
+              <ScanBarcode size={18} /> Scan book
             </button>
           </div>
           {method === "isbn" && (
-            <div className="scan-panel">
-              <ScanBarcode size={35} />
-              <h3>Find the number behind the story.</h3>
-              <p>
-                Use your camera to view the barcode, then enter its ISBN below.
-                Automatic recognition is planned.
-              </p>
-              <button
-                type="button"
-                className="button secondary"
-                onClick={() => {
-                  if (!navigator.mediaDevices) {
-                    setMessage(
-                      "Camera requires HTTPS or localhost. You can enter the ISBN manually.",
-                    );
-                    return;
-                  }
-                  setCamera(!camera);
-                }}
-              >
-                <Camera size={16} />
-                {camera ? "Close camera" : "Open camera"}
-              </button>
-              {camera && (
-                <video
-                  ref={video}
-                  autoPlay
-                  playsInline
-                  muted
-                  aria-label="Live camera preview"
-                />
-              )}
-              {message && <p role="status">{message}</p>}
-            </div>
+            <BookScanner
+              onResult={(details) =>
+                setForm((current) => ({
+                  ...current,
+                  title: current.title || details.title,
+                  author: current.author || details.author,
+                  isbn: current.isbn || details.isbn,
+                  description: current.description || details.description,
+                }))
+              }
+            />
           )}
           <div className="cover-upload">
             <span className="upload-icon">
@@ -345,16 +294,6 @@ export function AddBookPage() {
           </button>
         </aside>
       </div>
-      {camera && (
-        <button
-          className="sr-only"
-          type="button"
-          onClick={() => setCamera(false)}
-        >
-          <X />
-          Close camera
-        </button>
-      )}
     </>
   );
 }
