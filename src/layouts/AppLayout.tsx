@@ -35,8 +35,18 @@ const links = [
   { to: "/wallet", label: "BookCoin wallet", icon: Wallet },
 ];
 export function AppLayout() {
-  const { balance, toast, loading, error, refresh, profile, user, notify } =
-    useApp();
+  const {
+    chapter,
+    isAdmin,
+    balance,
+    toast,
+    loading,
+    error,
+    refresh,
+    profile,
+    user,
+    notify,
+  } = useApp();
   const [mobile, setMobile] = useState(false),
     [notice, setNotice] = useState(false),
     [install, setInstall] = useState<InstallEvent | null>(null);
@@ -87,8 +97,12 @@ export function AppLayout() {
             <Users size={19} />
           </span>
           <span>
-            <strong>Viha’s Chapter</strong>
-            <small>Powai, Mumbai</small>
+            <strong>{chapter?.name || "Your chapter"}</strong>
+            <small>
+              {chapter
+                ? `${chapter.area}, ${chapter.city}`
+                : "Chapter details unavailable"}
+            </small>
           </span>
           <ChevronDown size={15} />
         </Link>
@@ -105,6 +119,12 @@ export function AppLayout() {
               {to === "/requests" && <span className="nav-dot" />}
             </NavLink>
           ))}
+          {isAdmin && (
+            <NavLink to="/admin" onClick={() => setMobile(false)}>
+              <ShieldCheck size={19} />
+              <span>Admin panel</span>
+            </NavLink>
+          )}
         </nav>
         <Link to="/add-book" className="button add-sidebar">
           <Plus size={18} /> Share a book
