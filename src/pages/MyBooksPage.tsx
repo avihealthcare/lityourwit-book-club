@@ -199,8 +199,8 @@ export function MyBooksPage() {
       <div className="soft-note">
         <Clock size={19} />
         <p>
-          Pending books appear on your shelf while they await approval. No
-          listing reward is issued before moderation.
+          Pending books appear on your shelf while they await approval. Eligible
+          upload rewards are credited immediately.
         </p>
       </div>
     </>

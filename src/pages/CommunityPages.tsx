@@ -116,9 +116,9 @@ export function ChapterPage() {
       <div className="soft-note">
         <ShieldCheck size={22} />
         <p>
-          Our chapter is parent-led. Children’s contact details and exact home
-          addresses are never public. Exchanges will be coordinated between
-          parent accounts.
+          Our chapter welcomes all readers. Personal contact details and exact
+          home addresses are never public. Exchanges will be coordinated between
+          member accounts.
         </p>
       </div>
       <section className="panel chapter-guidelines">
@@ -132,7 +132,8 @@ export function ChapterPage() {
             condition.
           </p>
           <p>
-            <b>Let parents lead.</b> All exchanges are managed by adults.
+            <b>Share responsibly.</b> Coordinate exchanges respectfully and
+            safely.
           </p>
         </div>
       </section>
@@ -153,7 +154,7 @@ export function RequestsPage() {
         <ArrowLeftRight size={44} />
         <h2>The next chapter is on its way.</h2>
         <p>
-          Secure borrow requests, lending approvals and parent-confirmed OTP
+          Secure borrow requests, lending approvals and member-confirmed OTP
           exchanges are scheduled for the borrowing phase. No requests are being
           sent in this core UI build.
         </p>
@@ -172,7 +173,7 @@ export function SettingsPage() {
         <div>
           <div className="eyebrow">A SAFE PLACE FOR LITTLE READERS</div>
           <h1>Privacy & settings.</h1>
-          <p>Your family, your reading world.</p>
+          <p>Your account, your reading world.</p>
         </div>
       </div>
       <section className="panel settings-panel">
@@ -180,8 +181,8 @@ export function SettingsPage() {
         <h2>Your privacy comes first.</h2>
         <p>
           Only a family display name, chapter and friendly trust badge appear
-          publicly. Email addresses, children’s exact ages and home addresses
-          stay private.
+          publicly. Email addresses, dates of birth and home addresses stay
+          private.
         </p>
         <div className="soft-note">
           <Users />
@@ -190,7 +191,7 @@ export function SettingsPage() {
             the community phase. This version doesn’t collect child information.
           </p>
         </div>
-        <h3>Parent account</h3>
+        <h3>Member account</h3>
         <p>{user?.email || "You are viewing a demo family."}</p>
         <Link className="button secondary" to="/auth">
           <Mail size={16} /> Manage sign-in or reset password

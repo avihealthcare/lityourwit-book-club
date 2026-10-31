@@ -19,9 +19,9 @@ export function ProfilePage() {
     <>
       <div className="page-intro">
         <div>
-          <div className="eyebrow">THE FAMILY BEHIND THE BOOKSHELF</div>
+          <div className="eyebrow">THE READER BEHIND THE BOOKSHELF</div>
           <h1>Your reading corner.</h1>
-          <p>A little home for your family’s reading adventures.</p>
+          <p>A little home for your reading adventures.</p>
         </div>
       </div>
       <section className="profile-card panel">
@@ -38,7 +38,7 @@ export function ProfilePage() {
               .slice(0, 2) || "P"}
           </span>
           <div>
-            <h2>{profile?.display_name || "Your family"}</h2>
+            <h2>{profile?.display_name || "Your account"}</h2>
             <p>
               {chapter
                 ? `${chapter.name} · ${chapter.area}, ${chapter.city}`
@@ -82,8 +82,8 @@ export function ProfilePage() {
         {[
           {
             icon: Users,
-            title: "My family",
-            subtitle: "Parent-controlled profiles, little reading journeys",
+            title: "My account",
+            subtitle: "Your account and reading preferences",
             to: "/settings",
           },
           {
@@ -143,7 +143,7 @@ export function ProfilePage() {
         </button>
       ) : (
         <Link to="/auth" className="button">
-          {isDemo ? "Explore parent sign-in" : "Sign in to your account"}
+          {isDemo ? "Explore sign-in" : "Sign in to your account"}
         </Link>
       )}
     </>
