@@ -120,7 +120,7 @@ export function BookDetailPage() {
           </p>
           <p className="safety-note">
             <ShieldCheck size={16} /> Every exchange is coordinated between
-            parent accounts.
+            member accounts.
           </p>
         </div>
       </div>
@@ -142,7 +142,7 @@ export function BookDetailPage() {
             {isDemo
               ? "You’re exploring the core UI preview."
               : "Book exchanges are not enabled for this chapter yet."}{" "}
-            Secure requests, parent approval, and OTP handover will be added in
+            Secure requests, member approval, and OTP handover will be added in
             the next build phase.
           </p>
           <div className="soft-note">

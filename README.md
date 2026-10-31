@@ -1,10 +1,10 @@
 # LitYourWit Book Club
 
-Every bookshelf becomes a library. A parent-controlled, hyperlocal children's book-sharing platform, starting with Viha’s Chapter in Powai, Mumbai.
+Every bookshelf becomes a library. A reader-led, hyperlocal book-sharing platform, starting with Viha’s Chapter in Powai, Mumbai.
 
 ## Delivery milestone
 
-v0.1.0 is the **core UI and foundation milestone**, following the brief's first-delivery instruction. It includes React, strict TypeScript, React Router, Supabase integration, Netlify configuration, CI, and an installable PWA shell. Complex lending, BookCoin transfers, payments, and administration are intentionally deferred until the core experience is reviewed. See docs/ROADMAP.md for delivery status and launch gates.
+v0.1.0 is the **core UI and foundation milestone**, following the brief's first-delivery instruction. It includes React, strict TypeScript, React Router, Supabase integration, Netlify configuration, CI, and an installable PWA shell. The app also includes protected administration, book photos and scanning, automatic upload rewards, and manual UPI membership/BookCoin payments with admin approval. Lending, handovers and borrowing transfers remain future phases. See docs/ROADMAP.md for delivery status and launch gates.
 
 ## Local setup
 
@@ -34,7 +34,7 @@ React, TypeScript, Vite, React Router, Supabase Auth/Postgres, Netlify, GitHub A
 4. For a hosted project, use `npx supabase login`, `npx supabase link --project-ref <project-ref>`, then review and apply migrations with `npx supabase db push`. Do not seed production with fictional families. Run seed.sql only on a dedicated demo/development project.
 5. In Auth settings, enable email/password and email confirmation. Set Site URL to your app URL and allow redirect URLs `/auth` on localhost and your Netlify site. Set an SMTP provider for production email delivery.
 6. Copy the project URL and browser-safe anon/publishable key into `.env`. The requested `VITE_SUPABASE_ANON_KEY` variable also accepts a publishable key.
-7. Run database advisors and verify RLS with two distinct test parent accounts before any pilot. Migrations, seed data, RLS isolation and listing rollback are exercised by the PGlite Postgres test suite. The hosted schema, anonymous access denial and Security Advisor have also been verified. Full two-parent authentication and email delivery still need end-to-end testing before a pilot.
+7. Run database advisors and verify RLS with two distinct test member accounts before any pilot. Migrations, seed data, RLS isolation and listing rollback are exercised by the PGlite Postgres test suite. The hosted schema, anonymous access denial and Security Advisor have also been verified. Full two-member authentication and email delivery still need end-to-end testing before a pilot.
 
 | Variable               | Use                                            |
 | ---------------------- | ---------------------------------------------- |
@@ -52,7 +52,7 @@ npm run test
 npm run build
 ```
 
-The test suite runs the actual migration and seed in an embedded Postgres engine, checking two-parent isolation, append-only ledgers, denied wallet mutations, role spoofing, atomic listing creation and rollback. For a 390px layout preview during development, open `/docs/mobile-preview.html`.
+The test suite runs the actual migration and seed in an embedded Postgres engine, checking two-member isolation, append-only ledgers, denied wallet mutations, role spoofing, atomic listing creation and rollback. For a 390px layout preview during development, open `/docs/mobile-preview.html`.
 
 ## Netlify + GitHub
 
@@ -64,7 +64,7 @@ Supabase is connected and the schema is applied. The GitHub repository contains 
 
 ## Security and privacy
 
-Public profiles contain only safe display information. Parent and child records are private and protected by ownership RLS. Wallets/ledgers have read-only client access; there is no browser coin mutation endpoint. Plan configuration is read-only to clients. Submitted listings remain pending moderation and earn no client-side reward. No mock payment credits a wallet. Service worker caches only an explicit static asset allowlist, never Supabase/API responses or private account data. On shared devices, sign out after use. Do not commit secrets.
+Public profiles contain only safe display information. Account and optional reading-profile records are private and protected by ownership RLS. Wallets/ledgers have read-only client access; there is no browser coin mutation endpoint. Plan configuration is read-only to clients. Submitted listings remain pending catalogue moderation, while the backend credits eligible upload rewards atomically. UPI payment requests never credit themselves: an administrator must verify receipt and approve through the protected review API. See [docs/UPI_MEMBERSHIPS.md](docs/UPI_MEMBERSHIPS.md) for the payment flow and temporary signup-email setting. Service worker caches only an explicit static asset allowlist, never Supabase/API responses or private account data. On shared devices, sign out after use. Do not commit secrets.
 
 Auth uses [Supabase email/password authentication](https://supabase.com/docs/reference/javascript/auth-signup) and access controls follow [Supabase RLS guidance](https://supabase.com/docs/guides/database/postgres/row-level-security).
 

@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase";
+import type { PaymentRequest, PaidMembership } from "./payments";
 import type { Plan } from "../types";
 export interface Chapter {
   id: string;
@@ -28,6 +29,8 @@ export interface AdminBook {
   chapter_id: string;
 }
 export interface AdminSnapshot {
+  payments: PaymentRequest[];
+  memberships: PaidMembership[];
   chapters: Chapter[];
   members: Member[];
   books: AdminBook[];
@@ -43,9 +46,23 @@ export interface AdminSnapshot {
 export async function loadAdmin(): Promise<AdminSnapshot> {
   if (!supabase)
     throw new Error("Sign in to the connected app to manage your business.");
-  const { data, error } = await supabase.rpc("admin_snapshot");
-  if (error) throw new Error(error.message);
-  return data as AdminSnapshot;
+  const [base, finance] = await Promise.all([
+    supabase.rpc("admin_snapshot"),
+    supabase.rpc("admin_finance_snapshot"),
+  ]);
+  if (base.error) throw new Error(base.error.message);
+  if (
+    finance.error &&
+    finance.error.code !== "PGRST202" &&
+    finance.error.code !== "42883"
+  )
+    throw new Error(finance.error.message);
+  return {
+    ...base.data,
+    payments: [],
+    memberships: [],
+    ...(finance.data || {}),
+  } as AdminSnapshot;
 }
 export async function manage(action: string, data: object) {
   if (!supabase) throw new Error("Live connection required.");

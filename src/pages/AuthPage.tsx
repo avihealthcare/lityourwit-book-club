@@ -6,6 +6,8 @@ import {
   ShieldCheck,
   Mail,
   ArrowLeft,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { Brand } from "../components/Brand";
 import { ReadingIllustration } from "../components/ReadingIllustration";
@@ -17,7 +19,7 @@ export function WelcomePage() {
       <header>
         <Brand />
         <Link className="text-link" to="/auth">
-          Parent sign-in <ArrowRight size={17} />
+          Sign in <ArrowRight size={17} />
         </Link>
       </header>
       <div className="welcome-layout">
@@ -33,7 +35,7 @@ export function WelcomePage() {
             little reading, a little sharing, a whole lot of possibility.
           </p>
           <Link className="button" to="/auth?mode=signup">
-            Start your family’s story <ArrowRight size={18} />
+            Start your reading story <ArrowRight size={18} />
           </Link>
           <Link className="welcome-demo" to={isDemo ? "/" : "/auth"}>
             {isDemo
@@ -41,8 +43,7 @@ export function WelcomePage() {
               : "Already part of the chapter? Sign in →"}
           </Link>
           <span className="safety-note">
-            <ShieldCheck size={17} /> Parent-led · Made for ages 5–14 · Local by
-            heart
+            <ShieldCheck size={17} /> Open to all readers · Local by heart
           </span>
         </div>
         <ReadingIllustration />
@@ -63,7 +64,17 @@ export function AuthPage() {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [success, setSuccess] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
   const { user } = useApp();
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setTimeout(
+      () => setCooldown((current) => Math.max(0, current - 1)),
+      1000,
+    );
+    return () => clearTimeout(timer);
+  }, [cooldown]);
   useEffect(() => {
     if (!supabase) return;
     const {
@@ -81,6 +92,8 @@ export function AuthPage() {
   };
   async function submit(e: FormEvent) {
     e.preventDefault();
+    if (busy || (cooldown > 0 && (mode === "signup" || mode === "reset")))
+      return;
     setError("");
     setSuccess("");
     if (!supabase) {
@@ -106,7 +119,7 @@ export function AuthPage() {
           "Your password is updated. You can return to your bookshelf.",
         );
       } else if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -116,7 +129,9 @@ export function AuthPage() {
         });
         if (error) throw error;
         setSuccess(
-          "Check your email to verify your parent account. Then sign in to open your chapter.",
+          data.session
+            ? "Your account is ready. Open your bookshelf or register for membership."
+            : "Check your email to verify your account. Then sign in to open your chapter.",
         );
       } else {
         const { error } = await supabase.auth.signInWithPassword({
@@ -127,11 +142,25 @@ export function AuthPage() {
         setSuccess("Welcome back. Your bookshelf is ready.");
       }
     } catch (e) {
-      setError(
+      const message =
         e instanceof Error
           ? e.message
-          : "Could not complete sign-in. Please try again.",
-      );
+          : "Could not complete sign-in. Please try again.";
+      if (
+        (typeof e === "object" &&
+          e !== null &&
+          "status" in e &&
+          e.status === 429) ||
+        /rate limit|too many requests|only request this after/i.test(message)
+      ) {
+        const seconds = Number(
+          message.match(/after (\d+) seconds/i)?.[1] || 60,
+        );
+        setCooldown(seconds);
+        setError(
+          "The email service has reached its sending limit. Please wait before requesting another email. You can still sign in to an existing verified account. Contact the admin if registration remains blocked.",
+        );
+      } else setError(message);
     } finally {
       setBusy(false);
     }
@@ -141,7 +170,7 @@ export function AuthPage() {
       <div className="auth-art">
         <Brand />
         <div>
-          <span className="eyebrow">EVERY FAMILY HAS A STORY</span>
+          <span className="eyebrow">EVERY READER HAS A STORY</span>
           <h1>
             Let’s write
             <br />
@@ -171,8 +200,8 @@ export function AuthPage() {
           </h1>
           <p>
             {mode === "signup"
-              ? "Join your neighbourhood book club with a parent account."
-              : "Your family’s next favourite story is waiting."}
+              ? "Join your neighbourhood book club with your own account."
+              : "Your next favourite story is waiting."}
           </p>
           {isDemo && (
             <div className="soft-note">
@@ -186,14 +215,14 @@ export function AuthPage() {
           )}
           {mode === "signup" && (
             <label>
-              Parent display name
+              Display name
               <input
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 autoComplete="name"
                 maxLength={80}
-                placeholder="Your first or family name"
+                placeholder="Your name or reading nickname"
               />
             </label>
           )}
@@ -213,24 +242,29 @@ export function AuthPage() {
           {mode !== "reset" && (
             <label>
               Password
-              <input
-                type="password"
-                required
-                minLength={8}
-                maxLength={128}
-                autoComplete={
-                  mode === "login" ? "current-password" : "new-password"
-                }
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 8 characters"
-              />
-            </label>
-          )}
-          {mode === "signup" && (
-            <label className="checkbox-label">
-              <input type="checkbox" required /> I’m a parent or guardian, and
-              I’ll manage all book exchanges.
+              <div className="password-field">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  minLength={8}
+                  maxLength={128}
+                  autoComplete={
+                    mode === "login" ? "current-password" : "new-password"
+                  }
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="At least 8 characters"
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
+                  onClick={() => setShowPassword((value) => !value)}
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
             </label>
           )}
           {error && (
@@ -243,11 +277,16 @@ export function AuthPage() {
               {success}
             </p>
           )}
-          <button className="button" disabled={busy}>
+          <button
+            className="button"
+            disabled={
+              busy || (cooldown > 0 && (mode === "signup" || mode === "reset"))
+            }
+          >
             {busy
               ? "Just a moment…"
               : mode === "signup"
-                ? "Create parent account"
+                ? "Create account"
                 : mode === "reset"
                   ? "Send reset link"
                   : mode === "update"
@@ -255,6 +294,12 @@ export function AuthPage() {
                     : "Sign in"}
             {mode === "reset" ? <Mail size={17} /> : <ArrowRight size={17} />}
           </button>
+          {cooldown > 0 && (mode === "signup" || mode === "reset") && (
+            <p role="status">
+              Try again in {cooldown} seconds. Repeated requests do not reset
+              the provider's email quota.
+            </p>
+          )}
           <div className="auth-links">
             {mode === "login" ? (
               <>
@@ -275,8 +320,8 @@ export function AuthPage() {
             )}
           </div>
           <p className="safety-note">
-            <ShieldCheck size={17} /> Children never sign in or exchange books
-            directly.
+            <ShieldCheck size={17} /> A community for all readers. Membership
+            and paid credits are approved by the admin.
           </p>
         </form>
       </main>

@@ -20,7 +20,13 @@ import {
 import { loadAccount, loadCatalogue, saveBook } from "../services/catalogue";
 import type { Book, Plan, LedgerEntry, NewBook, FamilyProfile } from "../types";
 import type { Chapter } from "../services/admin";
+import {
+  emptyFinance,
+  loadFinance,
+  type MemberFinance,
+} from "../services/payments";
 interface AppState {
+  finance: MemberFinance;
   chapter: Pick<
     Chapter,
     "id" | "name" | "area" | "city" | "description" | "active"
@@ -78,6 +84,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       : null,
   );
+  const [finance, setFinance] = useState<MemberFinance>(emptyFinance);
   const [isAdmin, setIsAdmin] = useState(false);
   const refreshGeneration = useRef(0);
   const notify = useCallback((message: string) => setToast(message), []);
@@ -109,6 +116,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setBooks([]);
         setProfile(null);
         setIsAdmin(false);
+        setFinance(emptyFinance);
         setChapter(null);
         setBalance(0);
         setLedger([]);
@@ -125,6 +133,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setBooks(catalogue);
       setProfile(account.profile);
       setIsAdmin(account.isAdmin);
+      setFinance(account.finance);
       setChapter(account.chapter);
       setBalance(account.balance);
       setLedger(account.ledger);
@@ -135,6 +144,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setBooks([]);
       setProfile(null);
       setIsAdmin(false);
+      setFinance(emptyFinance);
       setChapter(null);
       setBalance(0);
       setLedger([]);
@@ -161,8 +171,47 @@ export function AppProvider({ children }: { children: ReactNode }) {
     void refresh();
     return () => subscription.unsubscribe();
   }, [refresh]);
+  const accountUserId = user?.id;
+  useEffect(() => {
+    if (!supabase || !accountUserId) return;
+    let cancelled = false,
+      syncing = false;
+    const sync = async () => {
+      if (document.visibilityState !== "visible" || syncing) return;
+      syncing = true;
+      const generation = refreshGeneration.current;
+      try {
+        const next = await loadFinance();
+        if (
+          !cancelled &&
+          generation === refreshGeneration.current &&
+          next.ready
+        ) {
+          if (next.balance !== undefined) setBalance(next.balance);
+          if (next.ledger) setLedger(next.ledger);
+          setFinance(next);
+        }
+      } catch {
+        /* Keep the last confirmed wallet on temporary network failures. */
+      } finally {
+        syncing = false;
+      }
+    };
+    const timer = setInterval(() => void sync(), 20000);
+    const onVisible = () => void sync();
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("lityourwit-account-changed", onVisible);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("lityourwit-account-changed", onVisible);
+    };
+  }, [accountUserId]);
   const addBook = async (book: NewBook) => {
     if (isDemo) {
+      const reward = economy.listing || 0;
+      setBalance((current) => current + reward);
       setBooks((prev) => [
         {
           ...book,
@@ -181,12 +230,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       await saveBook(book);
       await refresh();
     }
-    notify("Book submitted for approval. Thank you for sharing!");
+    notify(
+      "Book submitted. Your eligible upload BookCoins have been credited.",
+    );
   };
   return (
     <Context.Provider
       value={{
         chapter,
+        finance,
         isAdmin,
         books,
         plans,

@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { filterBooks, emptyFilters, isValidIsbn } from "./catalogue";
 import { demoBooks } from "../data/demo";
-import { MockPaymentProvider } from "../services/payments";
 describe("catalogue discovery", () => {
   it("searches author and title without case sensitivity", () => {
     expect(
@@ -44,12 +43,4 @@ describe("catalogue discovery", () => {
     "rejects invalid ISBN %s",
     (isbn) => expect(isValidIsbn(isbn)).toBe(false),
   );
-  it("does not claim to charge or issue coins in mock checkout", async () => {
-    const result = await new MockPaymentProvider().createCheckout({
-      coins: 25,
-      price: 100,
-    });
-    expect(result.status).toBe("unavailable");
-    expect(result.message).toContain("No payment was taken");
-  });
 });
