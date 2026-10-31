@@ -4,19 +4,26 @@
 
 - Welcome, email signup/login/reset, session handling and logout
 - Home, searchable/filterable catalogue, book details, manual/ISBN add-book form
-- My Books, profile, read-only BookCoin wallet, membership comparison and chapter overview
+- My Books, profile, read-only BookCoin wallet with automatic upload rewards, membership registration and chapter overview
 - Config-driven plans and economy display; responsive original cover artwork
 - PWA offline shell, installation handling, Netlify and CI configuration
 - Core schema, ownership RLS and fictional 50-family / 210-book seed
 
+## Added since the foundation
+
+- Protected admin panel, book photographs and two-cover scanning
+- Manual UPI membership and coin-pack payment requests, independent admin verification, atomic membership/wallet activation, duplicate-credit protection
+- Configured upload rewards and repair of missing historical credits
+- Reader accounts without a required parent/guardian checkbox, password visibility and mobile layouts
+
 ## Subsequent phases (not implemented)
 
-1. Borrow requests, moderation, reservations, plan entitlements and membership payment activation.
-2. Atomic OTP handover and return, idempotency, locked wallets, immutable ledger, capped membership-year rewards and referral eligibility.
+1. Borrow requests, reservations and enforcement of borrowing-plan entitlements.
+2. Atomic OTP handover and return, borrowing transfers, return rewards and referral eligibility.
 3. Overdue scheduler/notifications, extensions, protected value claims and disputes.
-4. Parent-approved reviews, child profiles, badges, challenges, leader dashboards and leaderboards.
+4. Moderated reviews, child profiles, badges, challenges, leader dashboards and leaderboards.
 5. Admin roles, analytics, audited actions and configuration management.
-6. Gateway integration (mock interface exists; no money taken), end-to-end security tests and production operations.
+6. Automated payment-gateway integration (current UPI payments require admin verification), end-to-end security tests and production operations.
 
 ## Production launch gates
 

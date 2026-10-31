@@ -4941,3 +4941,91 @@ label > span {
 .photo-edit-panel > .button { margin-top:18px; }
 .is-disabled { opacity:0.5; }
 @media(max-width:520px) { .photo-picker-grid {grid-template-columns:repeat(2,minmax(0,1fr));} .book-photo-picker {padding:16px;} }
+
+/* Membership payments and accessible authentication */
+.password-field { position:relative; width:100%; }
+.password-field input { padding-right:52px; width:100%; }
+.password-toggle { position:absolute; right:6px; top:50%; transform:translateY(-50%); min-width:44px; min-height:44px; background:transparent; border:0; color:#346685; display:grid; place-items:center; border-radius:8px; }
+.upi-payment-form { display:grid; gap:16px; text-align:left; }
+.upi-payment-form > h3 { padding-right:30px; }
+.upi-payment-form label { margin:0; }
+.upi-payment-form p { font-size:14px; line-height:1.65; }
+.upi-payee { background:#eef8fe; padding:22px; border:1px solid #c8e3f3; border-radius:16px; display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center; }
+.upi-payee > strong { font-size:36px; color:#006fb0; }
+.upi-payee > b { font-size:24px; letter-spacing:1px; overflow-wrap:anywhere; }
+.upi-payee p { margin:0; }
+.payment-status { padding:6px 12px; border-radius:20px; font-size:12px; text-transform:capitalize; white-space:nowrap; background:#fff2d9; color:#7b5209; }
+.payment-status.approved { background:#e6f6eb; color:#22683c; }
+.payment-status.rejected { background:#fff0ee; color:#9e3929; }
+.payment-reference { overflow-wrap:anywhere; }
+.payment-history { margin-top:26px; }
+.payment-success { text-align:center; padding:20px 0; }
+.membership-status { margin-bottom:24px; }
+.payment-review { align-items:flex-start; }
+@media(max-width:760px) {
+ html { -webkit-text-size-adjust:100%; }
+ body { overflow-x:hidden; }
+ .app-shell,.workspace,.main-content,.panel,.auth-main,.auth-form,.form-layout,.book-form,.detail-copy { min-width:0; max-width:100%; }
+ .main-content { padding:22px 16px 100px; }
+ input,select,textarea { font-size:16px!important; min-height:46px; max-width:100%; }
+ textarea { min-height:90px; }
+ button,.button { touch-action:manipulation; }
+ .button { min-height:44px; white-space:normal; text-align:center; }
+ .page-intro { gap:16px; flex-wrap:wrap; }
+ .page-intro h1 { font-size:clamp(27px,7.3vw,36px); overflow-wrap:break-word; }
+ .page-intro > div { min-width:0; }
+ .form-grid,.plan-grid,.wallet-layout,.earn-grid,.form-layout,.detail-layout { grid-template-columns:1fr!important; }
+ .plan-card { padding:24px 20px; }
+ .plan-card .button { width:100%; }
+ .billing-toggle { width:100%; display:flex; }
+ .billing-toggle button { min-height:46px; flex:1; }
+ .auth-page { min-height:100dvh; }
+ .auth-main { padding:28px 20px 40px; width:100%; }
+ .auth-form { width:100%; }
+ .auth-form h1 { font-size:30px; line-height:1.15; }
+ .auth-form .button { width:100%; }
+ .auth-links { gap:16px; flex-wrap:wrap; }
+ .welcome-page { padding:22px 20px; }
+ .welcome-page > header { gap:16px; flex-wrap:wrap; }
+ .welcome-layout { gap:24px; }
+ .welcome-layout h1 { font-size:clamp(36px,10vw,52px); }
+ .modal-backdrop { padding:12px; align-items:center; overflow-y:auto; }
+ .modal { width:100%; max-width:500px; padding:28px 20px; max-height:calc(100dvh - 24px); overflow-y:auto; overscroll-behavior:contain; }
+ .modal h2 { font-size:25px; padding-right:28px; }
+ .upi-payee { padding:18px 12px; }
+ .admin-tabs { margin-right:0; gap:7px; padding-bottom:14px; scroll-snap-type:x proximity; }
+ .admin-tabs button { min-height:44px; padding:10px 12px; scroll-snap-align:start; }
+ .admin-row { gap:14px; }
+ .admin-row .admin-actions { width:100%; }
+ .admin-row .admin-actions .button { flex:1; }
+ .admin-row time { font-size:12px; overflow-wrap:anywhere; }
+ .admin-stats { gap:10px; }
+ .admin-stats .panel { padding:16px; }
+ .admin-stats span { font-size:12px; }
+ .admin-editor { padding:20px 16px; }
+ .ledger-row { gap:10px; flex-wrap:wrap; }
+ .ledger-row > div { flex:1; min-width:0; overflow-wrap:anywhere; }
+ .ledger-row > b { font-size:16px; }
+ .wallet-card { padding:26px 20px; overflow:hidden; }
+ .wallet-balance { font-size:54px; flex-wrap:wrap; }
+ .wallet-card > div:last-of-type { display:flex; flex-wrap:wrap; gap:14px; }
+ .bottom-nav { padding-bottom:env(safe-area-inset-bottom,0px); }
+ .owned-book { grid-template-columns:80px minmax(0,1fr); gap:16px; }
+ .owned-meta { grid-column:1/-1; align-items:stretch; }
+ .owned-meta .button { width:100%; }
+ .book-photo-picker .admin-actions { display:grid; grid-template-columns:1fr; }
+ .photo-picker-grid img { height:130px; }
+ .book-gallery { padding:22px; }
+ .gallery-main > img { max-height:380px; }
+ .profile-summary { flex-wrap:wrap; gap:16px; }
+ .profile-summary > div { min-width:0; }
+ .profile-summary h2 { overflow-wrap:anywhere; }
+}
+@media(max-width:380px) {
+ .book-grid { gap:18px 12px; }
+ .main-content { padding-left:12px; padding-right:12px; }
+ .panel { padding:18px 14px; }
+ .wallet-balance { font-size:44px; }
+ .admin-stats {grid-template-columns:1fr 1fr;}
+}
+.route-loading { padding:32px; color:#41647b; text-align:center; }

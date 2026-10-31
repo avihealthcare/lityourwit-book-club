@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { NavLink, Outlet, Link, Navigate, useNavigate } from "react-router-dom";
 import {
   Home,
@@ -163,8 +163,8 @@ export function AppLayout() {
                 .slice(0, 2) || "P"}
             </span>
             <span>
-              <strong>{profile?.display_name || "Your family"}</strong>
-              <small>{isDemo ? "Demo family" : "Parent account"}</small>
+              <strong>{profile?.display_name || "Your account"}</strong>
+              <small>{isDemo ? "Demo reader" : "Member account"}</small>
             </span>
             <ArrowUpRight size={16} />
           </Link>
@@ -266,13 +266,21 @@ export function AppLayout() {
               <p>Opening your little library…</p>
             </div>
           ) : (
-            <Outlet />
+            <Suspense
+              fallback={
+                <p className="route-loading" role="status">
+                  Opening your page…
+                </p>
+              }
+            >
+              <Outlet />
+            </Suspense>
           )}
         </main>
         <footer className="desktop-footer">
           <span>Every bookshelf becomes a library.</span>
           <span>
-            <ShieldCheck size={13} /> Parent-led. Neighbourhood-loved.
+            <ShieldCheck size={13} /> Reader-led. Neighbourhood-loved.
           </span>
         </footer>
       </div>

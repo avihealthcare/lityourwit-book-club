@@ -20,6 +20,7 @@ import {
   type Chapter,
   type Member,
 } from "../services/admin";
+import { reviewUpiPayment } from "../services/payments";
 import type { Plan } from "../types";
 import { useApp } from "../hooks/useApp";
 const newChapter: Chapter = {
@@ -36,6 +37,7 @@ const sections = [
   ["chapters", "Chapters", MapPin],
   ["members", "Members", Users],
   ["books", "Book approvals", BookOpen],
+  ["payments", "Payments & memberships", CreditCard],
   ["plans", "Membership plans", CreditCard],
   ["settings", "Business settings", Settings],
   ["activity", "Activity log", History],
@@ -184,6 +186,10 @@ export function AdminPage() {
                     (m) => m.status === "pending" && !m.removed_at,
                   ).length,
                   "Awaiting membership approval",
+                ],
+                [
+                  data.payments.filter((p) => p.status === "pending").length,
+                  "Payments awaiting review",
                 ],
                 [
                   data.books.filter((b) => b.availability === "Pending").length,
@@ -419,6 +425,125 @@ export function AdminPage() {
                 ))}
             </div>
             {!data.books.length && <p>No books have been submitted yet.</p>}
+          </section>
+        )}
+        {tab === "payments" && (
+          <section className="panel">
+            <h2>UPI payments & paid memberships</h2>
+            <p>
+              Check receipt in your UPI app or bank account before approving.
+              Approval activates the paid membership and credits welcome
+              BookCoins, or credits the purchased coin pack. Chapter approval
+              alone does not activate paid membership.
+            </p>
+            <label>
+              Show payments
+              <select
+                value={query || "pending"}
+                onChange={(e) => setQuery(e.target.value)}
+              >
+                <option value="pending">Pending review</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="all">All payments</option>
+              </select>
+            </label>
+            {data.payments
+              .filter(
+                (r) =>
+                  (query || "pending") === "all" ||
+                  r.status === (query || "pending"),
+              )
+              .map((r) => (
+                <article className="admin-row payment-review" key={r.id}>
+                  <div>
+                    <h3>
+                      {r.display_name} ·{" "}
+                      {r.kind === "membership"
+                        ? `${r.plan_name} ${r.billing_interval} membership`
+                        : `${r.coins} BookCoins`}
+                    </h3>
+                    <p>
+                      <strong>₹{r.amount}</strong> · {r.coins} BookCoins on
+                      approval ·{" "}
+                      {new Date(r.created_at).toLocaleString("en-IN")}
+                    </p>
+                    <p>Payer: {r.payer_name}</p>
+                    <p className="payment-reference">
+                      UPI transaction ID / UTR: <b>{r.transaction_reference}</b>
+                    </p>
+                    <span className={`payment-status ${r.status}`}>
+                      {r.status}
+                    </span>
+                    {r.admin_notes && <p>Review note: {r.admin_notes}</p>}
+                  </div>
+                  {r.status === "pending" && (
+                    <div className="admin-actions">
+                      <button
+                        className="button"
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              `Confirm you independently verified receipt of ₹${r.amount} from ${r.payer_name}, UTR ${r.transaction_reference}. Approval will credit ${r.coins} BookCoins${r.kind === "membership" ? " and activate membership" : ""}.`,
+                            )
+                          )
+                            void run(
+                              () =>
+                                reviewUpiPayment(
+                                  r.id,
+                                  true,
+                                  "Payment verified by admin",
+                                ),
+                              "Payment approved. Membership and wallet credits have been updated.",
+                            );
+                        }}
+                      >
+                        Verify & approve
+                      </button>
+                      <button
+                        className="button danger"
+                        onClick={() => {
+                          const reason = window.prompt(
+                            "Reason for rejecting this payment (shown to the member):",
+                          );
+                          if (reason?.trim())
+                            void run(
+                              () =>
+                                reviewUpiPayment(r.id, false, reason.trim()),
+                              "Payment rejected. No coins were credited.",
+                            );
+                        }}
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  )}
+                </article>
+              ))}
+            {!data.payments.some(
+              (r) =>
+                (query || "pending") === "all" ||
+                r.status === (query || "pending"),
+            ) && <p>No matching payment requests.</p>}
+            <h3>Paid memberships</h3>
+            {data.memberships.map((m) => (
+              <article key={m.id} className="admin-row">
+                <div>
+                  <strong>
+                    {data.members.find((member) => member.id === m.user_id)
+                      ?.display_name || "Member"}
+                  </strong>
+                  <p>
+                    {data.plans.find((p) => p.id === m.plan_id)?.name} ·{" "}
+                    {m.billing_interval}
+                  </p>
+                </div>
+                <p>
+                  {m.status} · until{" "}
+                  {new Date(m.ends_at).toLocaleDateString("en-IN")}
+                </p>
+              </article>
+            ))}
           </section>
         )}
         {tab === "plans" && (

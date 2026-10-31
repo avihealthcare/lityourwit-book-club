@@ -12,11 +12,16 @@ import {
 } from "lucide-react";
 import { useApp } from "../hooks/useApp";
 import { isDemo } from "../lib/supabase";
-import { paymentProvider, previewPacks } from "../services/payments";
+import { UpiPaymentForm, type UpiChoice } from "../components/UpiPaymentForm";
+import { PaymentHistory } from "../components/PaymentHistory";
 import { Link } from "react-router-dom";
 export function WalletPage() {
-  const { balance, ledger, economy, notify } = useApp();
+  const { balance, ledger, economy, finance } = useApp();
   const [packs, setPacks] = useState(false);
+  const [choice, setChoice] = useState<UpiChoice | null>(null);
+  const pending = finance.requests.some(
+    (r) => r.kind === "coin_pack" && r.status === "pending",
+  );
   return (
     <>
       <div className="page-intro">
@@ -39,13 +44,24 @@ export function WalletPage() {
               : "Your next great read starts here."}
           </p>
           <div>
-            <button className="button light" onClick={() => setPacks(true)}>
+            <button
+              className="button light"
+              disabled={!finance.active || pending}
+              onClick={() => setPacks(true)}
+            >
               Get BookCoins <ArrowUpRight size={17} />
             </button>
             <Link to="/add-book" className="text-link">
               Share a book <ArrowUpRight size={16} />
             </Link>
           </div>
+          {!finance.active && (
+            <p>
+              <Link to="/membership">Register for membership</Link> to unlock
+              UPI BookCoin purchases after approval.
+            </p>
+          )}
+          {pending && <p>Your coin purchase is awaiting admin approval.</p>}
           <span className="wallet-decoration">✦</span>
         </section>
         <section className="panel wallet-note">
@@ -53,8 +69,8 @@ export function WalletPage() {
           <h3>Small coins. Big possibilities.</h3>
           <p>
             Borrowing a standard book uses {economy.borrow ?? "—"} BookCoins.
-            Coins move only when a secure, parent-confirmed handover is
-            complete.
+            Upload rewards are credited automatically. Membership and UPI
+            purchase credits are added after admin payment verification.
           </p>
           <span className="safe-badge">Made for sharing, built on trust</span>
         </section>
@@ -72,19 +88,19 @@ export function WalletPage() {
             {
               icon: BookOpen,
               title: "Share your bookshelf",
-              text: `+${economy.listing ?? "—"} for an approved listing · up to ${economy.listing_annual_cap ?? "—"} per membership year`,
+              text: `+${economy.listing ?? "—"} for a book upload · up to ${economy.listing_annual_cap ?? "—"} per 365 days`,
               href: "/add-book",
             },
             {
               icon: Repeat2,
               title: "Let a story travel",
-              text: `+${economy.borrow ?? "—"} when your book is borrowed · +${economy.return_bonus ?? "—"} on successful return`,
+              text: `Planned: +${economy.borrow ?? "—"} when your book is borrowed · +${economy.return_bonus ?? "—"} on successful return`,
               href: "/my-books",
             },
             {
               icon: Gift,
               title: "Grow your reading circle",
-              text: `+${economy.referral ?? "—"} after a paid referral completes their first borrow`,
+              text: `Planned: +${economy.referral ?? "—"} after a paid referral completes their first borrow`,
               href: "/chapter",
             },
           ].map(({ icon: Icon, ...item }) => (
@@ -145,48 +161,66 @@ export function WalletPage() {
           </div>
         )}
       </section>
+      <PaymentHistory
+        requests={finance.requests.filter((r) => r.kind === "coin_pack")}
+      />
       {packs && (
-        <Modal titleId="pack-title" onClose={() => setPacks(false)}>
+        <Modal
+          titleId="pack-title"
+          onClose={() => {
+            setPacks(false);
+            setChoice(null);
+          }}
+        >
           <button
             className="icon-button modal-close"
-            aria-label="Close purchase preview"
-            onClick={() => setPacks(false)}
+            aria-label="Close BookCoin purchase"
+            onClick={() => {
+              setPacks(false);
+              setChoice(null);
+            }}
           >
             <X />
           </button>
-          <Sparkles size={30} />
-          <h2 id="pack-title">More stories in your pocket.</h2>
-          <p>Purchase preview · payments are not enabled.</p>
-          <div className="pack-list">
-            {previewPacks.map((pack) => (
-              <button
-                key={pack.coins}
-                className="pack"
-                onClick={async () => {
-                  const result = await paymentProvider.createCheckout(pack);
-                  notify(result.message);
-                  setPacks(false);
-                }}
-              >
-                <span>
-                  <b>✦ {pack.coins}</b> BookCoins
-                </span>
-                <strong>₹{pack.price}</strong>
-                <ArrowUpRight size={15} />
-              </button>
-            ))}
-          </div>
-          <p className="safety-note">
-            <ShieldCheck size={15} /> No payment is taken. No wallet balance is
-            changed.
-          </p>
-          <button
-            autoFocus
-            className="button secondary"
-            onClick={() => setPacks(false)}
-          >
-            Back to wallet
-          </button>
+          <h2 id="pack-title">Get BookCoins with UPI</h2>
+          {choice ? (
+            <UpiPaymentForm
+              choice={choice}
+              onDone={() => {
+                setPacks(false);
+                setChoice(null);
+              }}
+            />
+          ) : (
+            <>
+              <p>
+                Choose a pack and pay by UPI. Coins are added after admin
+                approval.
+              </p>
+              <div className="pack-list">
+                {finance.packs.map((pack) => (
+                  <button
+                    key={pack.coins}
+                    className="pack"
+                    onClick={() =>
+                      setChoice({
+                        kind: "coin_pack",
+                        title: `${pack.coins} BookCoins`,
+                        amount: pack.price,
+                        coins: pack.coins,
+                      })
+                    }
+                  >
+                    <span>
+                      <b>✦ {pack.coins}</b> BookCoins
+                    </span>
+                    <strong>₹{pack.price}</strong>
+                    <ArrowUpRight size={15} />
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </Modal>
       )}
     </>

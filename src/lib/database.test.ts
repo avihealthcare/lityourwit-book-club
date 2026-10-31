@@ -556,3 +556,284 @@ describe("book photographs and storage isolation", () => {
     }
   });
 });
+
+describe("UPI payments and automatic BookCoins", () => {
+  const member = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+  const admin = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+  let membershipRequest: string, coinRequest: string;
+  beforeAll(async () => {
+    await db.exec(
+      `insert into auth.users(id,email) values('${member}','reader@example.test')`,
+    );
+  });
+  const submitRequest = (
+    kind: string,
+    reference: string,
+    amount: number,
+    plan = "reader",
+    interval = "monthly",
+    coins = 25,
+  ) =>
+    asParent(
+      member,
+      `select public.request_upi_payment('${kind}','${plan}','${interval}',${coins},'Reader','${reference}',${amount}) as id`,
+    );
+  it("credits uploads automatically with an append-only ledger and no duplicate rewards", async () => {
+    const payload = JSON.stringify({
+      title: "Reward Story",
+      author: "An Author",
+      age_band: "8–10",
+      genre: "Fantasy",
+      language: "English",
+      condition: "Good",
+      protected_value: 100,
+    });
+    const result = await asParent(
+      member,
+      `select public.submit_book('${payload}') as id`,
+    );
+    const copy = (result.rows[0] as { id: string }).id;
+    expect(
+      (await asParent(member, "select balance from public.bookcoin_wallets"))
+        .rows,
+    ).toEqual([{ balance: 1 }]);
+    await db.exec(`select private.reward_book_listing('${copy}')`);
+    expect(
+      (await asParent(member, "select balance from public.bookcoin_wallets"))
+        .rows,
+    ).toEqual([{ balance: 1 }]);
+    expect(
+      (
+        await asParent(
+          member,
+          "select transaction_type,amount from public.bookcoin_transactions",
+        )
+      ).rows,
+    ).toEqual([{ transaction_type: "listing_reward", amount: 1 }]);
+  });
+  it("repairs historical uploads missing rewards without duplicate credits", async () => {
+    const historical = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+    await db.exec(
+      `insert into auth.users(id,email) values('${historical}','historical@example.test')`,
+    );
+    const book = (
+      await db.query<{ id: string }>(
+        `insert into public.books(title,author,age_band,genre,submitted_by) values('Historical Story','An Author','8–10','Fantasy','${historical}') returning id`,
+      )
+    ).rows[0].id;
+    await db.exec(
+      "alter table public.book_copies disable trigger credit_book_upload",
+    );
+    let copies: { id: string }[] = [];
+    try {
+      copies = (
+        await db.query<{ id: string }>(
+          `insert into public.book_copies(book_id,owner_id,chapter_id,condition,protected_value) values('${book}','${historical}','11111111-1111-4111-8111-111111111111','Good',100),('${book}','${historical}','11111111-1111-4111-8111-111111111111','Good',100) returning id`,
+        )
+      ).rows;
+    } finally {
+      await db.exec(
+        "alter table public.book_copies enable trigger credit_book_upload",
+      );
+    }
+    expect(
+      (
+        await db.query(
+          `select balance from public.bookcoin_wallets where user_id='${historical}'`,
+        )
+      ).rows,
+    ).toEqual([{ balance: 0 }]);
+    for (const copy of copies) {
+      await db.exec(
+        `select private.reward_book_listing('${copy.id}'); select private.reward_book_listing('${copy.id}')`,
+      );
+    }
+    expect(
+      (
+        await db.query(
+          `select balance from public.bookcoin_wallets where user_id='${historical}'`,
+        )
+      ).rows,
+    ).toEqual([{ balance: 2 }]);
+    expect(
+      (
+        await db.query(
+          `select count(*)::int as n from public.bookcoin_transactions where user_id='${historical}'`,
+        )
+      ).rows,
+    ).toEqual([{ n: 2 }]);
+  });
+  it("blocks coin purchases before paid membership approval and blocks direct payment writes", async () => {
+    await expect(
+      submitRequest("coin_pack", "EARLY123456", 100),
+    ).rejects.toThrow(/approved active paid membership/);
+    await expect(
+      asParent(
+        member,
+        `insert into public.payment_requests(user_id,kind,amount,coins,payer_name,transaction_reference) values('${member}','coin_pack',100,25,'Reader','FORGED123456')`,
+      ),
+    ).rejects.toThrow(/permission denied/);
+    await expect(
+      asParent(
+        member,
+        `select public.review_upi_payment('${member}',true,'verified')`,
+      ),
+    ).rejects.toThrow(/Administrator access required/);
+    await expect(
+      asParent(
+        member,
+        `select private.credit_bookcoins('${member}',1000,'cheat','cheat','${member}','forged')`,
+      ),
+    ).rejects.toThrow(/permission denied/);
+  });
+  it("creates a pending membership with trusted prices and leaves the wallet unchanged", async () => {
+    // Administration tests changed Reader annual price to 600; monthly remains 100.
+    const result = await submitRequest("membership", "UPIMEMBER1234", 100);
+    membershipRequest = (result.rows[0] as { id: string }).id;
+    expect(
+      (
+        await asParent(
+          member,
+          `select amount,coins,status from public.payment_requests where id='${membershipRequest}'`,
+        )
+      ).rows,
+    ).toEqual([{ amount: 100, coins: 50, status: "pending" }]);
+    expect(
+      (await asParent(member, "select balance from public.bookcoin_wallets"))
+        .rows,
+    ).toEqual([{ balance: 1 }]);
+    await expect(
+      submitRequest("membership", "DUPLICATE1234", 100),
+    ).rejects.toThrow(/already awaiting review/);
+    expect(
+      (await asParent(parentA, "select * from public.payment_requests")).rows,
+    ).toEqual([]);
+  });
+  it("atomically approves membership and credits welcome coins exactly once", async () => {
+    await asParent(
+      admin,
+      `select public.review_upi_payment('${membershipRequest}',true,'UPI receipt verified')`,
+    );
+    await asParent(
+      admin,
+      `select public.review_upi_payment('${membershipRequest}',true,'repeat')`,
+    );
+    expect(
+      (await asParent(member, "select balance from public.bookcoin_wallets"))
+        .rows,
+    ).toEqual([{ balance: 51 }]);
+    expect(
+      (
+        await asParent(
+          member,
+          "select count(*)::int as n from public.bookcoin_transactions where transaction_type='membership_welcome'",
+        )
+      ).rows,
+    ).toEqual([{ n: 1 }]);
+    const status = await asParent(
+      member,
+      "select public.member_finance() as finance",
+    );
+    expect(
+      (status.rows[0] as { finance: { active: boolean } }).finance.active,
+    ).toBe(true);
+    expect(
+      (await asParent(member, "select status from public.memberships")).rows,
+    ).toEqual([{ status: "active" }]);
+    await expect(
+      submitRequest("membership", "SECONDTERM123", 100),
+    ).rejects.toThrow(/already active/);
+  });
+  it("credits a verified coin purchase once and rejects reused transaction references", async () => {
+    const result = await submitRequest("coin_pack", "UPICOINS12345", 100);
+    coinRequest = (result.rows[0] as { id: string }).id;
+    expect(
+      (await asParent(member, "select balance from public.bookcoin_wallets"))
+        .rows,
+    ).toEqual([{ balance: 51 }]);
+    await asParent(
+      admin,
+      `select public.review_upi_payment('${coinRequest}',true,'UPI receipt verified')`,
+    );
+    await asParent(
+      admin,
+      `select public.review_upi_payment('${coinRequest}',true,'repeat')`,
+    );
+    expect(
+      (await asParent(member, "select balance from public.bookcoin_wallets"))
+        .rows,
+    ).toEqual([{ balance: 76 }]);
+    await expect(
+      submitRequest("coin_pack", "upi-coins-12345", 100),
+    ).rejects.toThrow(/already been submitted/);
+  });
+  it("rejects wrong prices, unsupported packs and invalid UTRs", async () => {
+    await expect(
+      submitRequest("coin_pack", "WRONGPRICE123", 1),
+    ).rejects.toThrow(/price has changed/);
+    await expect(
+      submitRequest(
+        "coin_pack",
+        "FORGEDPACK123",
+        100,
+        "reader",
+        "monthly",
+        9999,
+      ),
+    ).rejects.toThrow(/pack not found/);
+    await expect(submitRequest("coin_pack", "123", 100)).rejects.toThrow(
+      /valid UPI transaction/,
+    );
+  });
+  it("does not credit rejected payments and prevents post-approval reversal", async () => {
+    const result = await submitRequest("coin_pack", "REJECTED12345", 100);
+    const id = (result.rows[0] as { id: string }).id;
+    await asParent(
+      admin,
+      `select public.review_upi_payment('${id}',false,'Payment not received')`,
+    );
+    expect(
+      (await asParent(member, "select balance from public.bookcoin_wallets"))
+        .rows,
+    ).toEqual([{ balance: 76 }]);
+    await expect(
+      asParent(
+        admin,
+        `select public.review_upi_payment('${coinRequest}',false,'reverse')`,
+      ),
+    ).rejects.toThrow(/already been reviewed/);
+  });
+  it("enforces the configured annual upload reward cap", async () => {
+    const payload = JSON.stringify({
+      title: "Capped Story",
+      author: "An Author",
+      age_band: "8–10",
+      genre: "Fantasy",
+      language: "English",
+      condition: "Good",
+      protected_value: 100,
+    });
+    for (let i = 0; i < 22; i++)
+      await asParent(member, `select public.submit_book('${payload}')`);
+    expect(
+      (
+        await asParent(
+          member,
+          "select sum(amount)::int as earned from public.bookcoin_transactions where transaction_type='listing_reward'",
+        )
+      ).rows,
+    ).toEqual([{ earned: 20 }]);
+    expect(
+      (await asParent(member, "select balance from public.bookcoin_wallets"))
+        .rows,
+    ).toEqual([{ balance: 95 }]);
+  });
+  it("blocks coin purchases when membership expires", async () => {
+    await db.exec(
+      `update public.memberships set starts_at=now()-interval '2 months',ends_at=now()-interval '1 month' where user_id='${member}'`,
+    );
+    await expect(
+      submitRequest("coin_pack", "EXPIRED123456", 100),
+    ).rejects.toThrow(/approved active paid membership/);
+  });
+});

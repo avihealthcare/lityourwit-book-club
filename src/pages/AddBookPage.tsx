@@ -57,9 +57,7 @@ export function AddBookPage() {
       return;
     }
     if (!isDemo && !user) {
-      setError(
-        "Please sign in with your parent account before listing a book.",
-      );
+      setError("Please sign in with your account before listing a book.");
       return;
     }
     if (preparingPhotos || saving) return;
@@ -293,9 +291,7 @@ export function AddBookPage() {
             <Plus size={18} />
             {saving ? "Uploading photos and submitting…" : "Share this book"}
           </button>
-          {!isDemo && !user && (
-            <Link to="/auth">Sign in to your parent account</Link>
-          )}
+          {!isDemo && !user && <Link to="/auth">Sign in to your account</Link>}
         </form>
         <aside className="form-aside">
           <div className="panel sharing-note">

@@ -1,3 +1,4 @@
+import { loadFinance } from "./payments";
 import { resolveBookPhotos } from "./bookPhotos";
 import { supabase } from "../lib/supabase";
 import type { Book, NewBook, Plan, LedgerEntry, FamilyProfile } from "../types";
@@ -46,7 +47,9 @@ export async function loadAccount(userId: string) {
         .maybeSingle()
     : null;
   if (chapterResult?.error) throw chapterResult.error;
+  const finance = await loadFinance();
   return {
+    finance,
     chapter: chapterResult?.data ?? null,
     profile: results[0].data as FamilyProfile | null,
     balance: (results[1].data as { balance: number } | null)?.balance ?? 0,
